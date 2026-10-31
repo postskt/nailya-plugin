@@ -151,6 +151,20 @@
     __results.push(['FAIL', '临时简档测试异常', (e.stack || e.message).split('\n').slice(0, 4).join(' | ')]);
   }
 
+
+  // ===== 10. 雷达覆盖玩家消息（V6.3.1）=====
+  try {
+    const dispFn10 = __captured.handlers.find(h => h[0] === 'display')[1];
+    globalThis.__testChat.message.push({ role: 'user', data: '我轻轻抱住你，揉了揉你的头发' });
+    const dispA = await dispFn10('她轻轻点了点头。');
+    T('雷达:玩家消息中的动作能触发补图', /yuna_/.test(dispA), dispA.slice(-45));
+    globalThis.__testChat.message.pop();
+    const dispB = await dispFn10('她轻轻点了点头。');
+    T('雷达:玩家消息移除后不再补图', dispB === '她轻轻点了点头。', JSON.stringify(dispB));
+  } catch (e) {
+    __results.push(['FAIL', '雷达测试异常', String(e.message).slice(0, 80)]);
+  }
+
   let pass = 0, fail = 0;
   console.log('\n========== 奈亚V6.0.1 自动化测试报告 ==========');
   for (const [st, name, extra] of __results) {

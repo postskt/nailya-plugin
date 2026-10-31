@@ -10,6 +10,7 @@ const __testCharObj = {
   ],
   description: '测试用角色卡'
 };
+globalThis.__testChat = { uuid: 'chat-abc', message: [] };
 globalThis.Risuai = {
   registerButton: async () => ({ id: 'btn' }),
   registerSetting: async () => ({ id: 'set' }),
@@ -28,7 +29,7 @@ globalThis.Risuai = {
   },
   getCurrentCharacterIndex: async () => 0,
   getCurrentChatIndex: async () => 0,
-  getChatFromIndex: async () => ({ uuid: 'chat-abc', message: [] }),
+  getChatFromIndex: async () => globalThis.__testChat,
   getCharacter: async () => __testCharObj,
   getDatabase: async () => ({ modules: [], enabledModules: [], personas: [], selectedPersona: 0 }),
   nativeFetch: async () => { throw new Error('测试环境无网络'); },

@@ -133,6 +133,21 @@ if (cmd === 'contexts') {
       }
     }
   }
+} else if (cmd === 'dbupgrade') {
+  // node cdp.mjs dbupgrade <插件代码文件> — 把插件数据库里的 favor_physio_manager 就地升级为指定代码
+  const code = fs.readFileSync(arg1, 'utf8');
+  const expression = `(async()=>{try{
+    const db=await Risuai.getDatabase(['plugins']);
+    const p=db.plugins.find(x=>x.name==='favor_physio_manager');
+    if(!p) return 'ERR: 找不到 favor_physio_manager';
+    const old=p.version;
+    p.script=${JSON.stringify(code)};
+    p.version='6.3.0';
+    await Risuai.setDatabase(db);
+    return '插件已从 v'+old+' 升级到 v6.3.0 并保存';
+  }catch(e){return 'ERR:'+e.message}})()`;
+  const out = await evalInContext(expression, arg2, 60000);
+  console.log(out);
 } else if (cmd === 'eval') {
   const out = await evalInContext(arg1, arg2);
   console.log(typeof out === 'string' ? out : JSON.stringify(out, null, 1));
