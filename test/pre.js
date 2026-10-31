@@ -6,7 +6,8 @@ const __testCharObj = {
   emotionImages: [
     ['yuna_normal_smile.png'], ['yuna_kiss_shy.png'], ['yuna_hug_happy.png'],
     ['yuna_bath_towel_calm.png'], ['yuna_swim_beach.png'], ['yuna_nude_missionary_sex.png'],
-    ['yuna_sleep_pajamas.png'], ['yuna_wedding_bride.png']
+    ['yuna_sleep_pajamas.png'], ['yuna_wedding_bride.png'],
+    ['yuna_kiss_shy2.png'], ['yuna_kiss_shy-3.png'], ['yuna_nude_doggy_sex.png']
   ],
   description: '测试用角色卡'
 };

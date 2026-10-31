@@ -25,7 +25,7 @@
     // ===== 3. 选图引擎 =====
     const ctx = await getFastContext(true);
     const report = await getCachedCardReport(ctx, true);
-    T('资产扫描:8张立绘', report.assets.length === 8, 'got ' + report.assets.length);
+    T('资产扫描:11张立绘(含差分)', report.assets.length === 11, 'got ' + report.assets.length);
     T('前缀识别:yuna', report.knownCharTokens.includes('yuna'), report.knownCharTokens.join(','));
     const pick1 = findBestImageForVisTag(ctx.key, '尤娜', '接吻', '害羞', '常服', report, {}, favorProfiles, ctx);
     T('选图:接吻→kiss图', !!pick1 && pick1.baseName.includes('kiss'), pick1 && pick1.baseName);
@@ -38,6 +38,21 @@
     const s1 = findBestImageForVisTag(ctx.key, '尤娜', '站立', '微笑', '常服', report, {}, favorProfiles, ctx);
     const s2 = findBestImageForVisTag(ctx.key, '尤娜', '站立', '微笑', '常服', report, {}, favorProfiles, ctx);
     T('选图:同标签结果稳定(粘性)', !!s1 && !!s2 && s1.baseName === s2.baseName, s1 && s2 && (s1.baseName + ' vs ' + s2.baseName));
+
+    // ===== 3b. V6.7.0 三段式选图 =====
+    const pickE = findBestImageForVisTag(ctx.key, '尤娜', '接吻', '开心', '常服', report, {}, favorProfiles, ctx);
+    T('三段式:日常表情优先于动作(开心+常服不被接吻压死)', !!pickE && !pickE.baseName.includes('kiss'), pickE && pickE.baseName);
+    const pickP = findBestImageForVisTag(ctx.key, '尤娜', '后入', '害羞', '全裸', report, {}, favorProfiles, ctx);
+    T('三段式:做爱体位决定性(后入→doggy)', !!pickP && pickP.baseName.includes('doggy'), pickP && pickP.baseName);
+    const pickM = findBestImageForVisTag(ctx.key, '尤娜', '传教士', '动情', '全裸', report, {}, favorProfiles, ctx);
+    T('三段式:做爱体位决定性(传教士→missionary)', !!pickM && pickM.baseName.includes('missionary'), pickM && pickM.baseName);
+    const pickB = findBestImageForVisTag(ctx.key, '尤娜', '捆绑', '平静', '常服', report, {}, favorProfiles, ctx);
+    T('三段式:捆绑→NSFW池', !!pickB && pickB.isNsfw, pickB && pickB.baseName);
+    const pickN = findBestImageForVisTag(ctx.key, '尤娜', '无', '微笑', '常服', report, {}, favorProfiles, ctx);
+    T('三段式:槽1填无不扣分(微笑+常服→normal图)', !!pickN && pickN.baseName.includes('normal'), pickN && pickN.baseName);
+    const d1 = findBestImageForVisTag(ctx.key, '尤娜', '接吻', '害羞', '常服', report, {}, favorProfiles, ctx);
+    const d2 = findBestImageForVisTag(ctx.key, '尤娜', '接吻', '害羞', '常服', report, {}, favorProfiles, ctx);
+    T('差分轮换:同标签连续两次不重复', !!d1 && !!d2 && d1.baseName !== d2.baseName, d1 && d2 && (d1.baseName + ' vs ' + d2.baseName));
 
     // ===== 4. 怀孕当场结算 =====
     const prof1 = mkProf();
@@ -173,12 +188,14 @@
     T('标签菜单:已注入到说明书', joined12.includes('可用标签菜单'), joined12.includes('可用标签菜单'));
     T('标签菜单:含图包实际服装词', joined12.includes('泳衣') || joined12.includes('睡衣'), '');
     T('标签菜单:含图包实际表情词', joined12.includes('害羞') || joined12.includes('开心'), '');
+    T('标签菜单:体位区已独立注入', joined12.includes('- 体位：'), '');
+    T('标签菜单:槽3含裸体状态词', joined12.includes('裸体') || joined12.includes('浴巾'), '');
   } catch (e) {
     __results.push(['FAIL', '标签菜单测试异常', String(e.message).slice(0, 80)]);
   }
 
   let pass = 0, fail = 0;
-  console.log('\n========== 奈亚V6.0.1 自动化测试报告 ==========');
+  console.log('\n========== 奈亚V6.7.0 自动化测试报告 ==========');
   for (const [st, name, extra] of __results) {
     if (st === 'PASS') pass++; else fail++;
     console.log(`[${st}] ${name}${extra ? '  → ' + extra : ''}`);

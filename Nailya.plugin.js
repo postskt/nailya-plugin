@@ -1,7 +1,7 @@
 //@name favor_physio_manager
-//@display-name 奈亚V6.6.0·星云极光
+//@display-name 奈亚V6.7.0·星云极光
 //@api 3.0
-//@version 6.6.0
+//@version 6.7.0
 //@update-url https://raw.githubusercontent.com/postskt/nailya-plugin/main/Nailya.plugin.js
 
 (async () => {
@@ -83,7 +83,7 @@
       ...['action', 'chat', 'hamburger'].map(async (loc) => {
         try {
           const btnRes = await registerButtonSafe({
-            name: '奈亚V6.6.0',
+            name: '奈亚V6.7.0',
             icon: PLUGIN_ICON,
             iconType: PLUGIN_ICON_TYPE,
             location: loc,
@@ -91,13 +91,13 @@
           }, onPluginButtonClick);
           if (btnRes && btnRes.id) registeredUIParts.push(btnRes.id);
         } catch (btnErr) {
-          console.log(`[Nailya V6.6.0] 注册 ${loc} 按钮异常: ${btnErr.message}`);
+          console.log(`[Nailya V6.7.0] 注册 ${loc} 按钮异常: ${btnErr.message}`);
         }
       }),
       (async () => {
         try {
           const setRes = await registerSettingSafe(
-            '奈亚V6.6.0 星云极光·好感·生理·穿搭·酒馆预设',
+            '奈亚V6.7.0 星云极光·好感·生理·穿搭·酒馆预设',
             onPluginButtonClick,
             PLUGIN_ICON,
             PLUGIN_ICON_TYPE,
@@ -105,7 +105,7 @@
           );
           if (setRes && setRes.id) registeredUIParts.push(setRes.id);
         } catch (setErr) {
-          console.log(`[Nailya V6.6.0] 注册设置异常: ${setErr.message}`);
+          console.log(`[Nailya V6.7.0] 注册设置异常: ${setErr.message}`);
         }
       })()
     ]);
@@ -218,7 +218,7 @@
         }
         dataLoaded = true;
       } catch (e) {
-        console.log(`[Nailya V6.6.0] 读取数据异常: ${e.message}`);
+        console.log(`[Nailya V6.7.0] 读取数据异常: ${e.message}`);
       }
     }
 
@@ -249,7 +249,7 @@
           dirtyStoreKeys.clear();
           if (tasks.length > 0) await Promise.all(tasks);
         } catch (e) {
-          console.log(`[Nailya V6.6.0] 保存数据失败: ${e.message}`);
+          console.log(`[Nailya V6.7.0] 保存数据失败: ${e.message}`);
         }
       };
 
@@ -299,7 +299,7 @@
     function exportFullBackupJson() {
       const payload = {
         plugin: 'favor_physio_manager_nailya',
-        version: '6.6.0',
+        version: '6.7.0',
         exportedAt: new Date().toISOString(),
         favorProfiles,
         cardAiCache,
@@ -1575,7 +1575,7 @@ ${coreSchemaInstruction}
           alert('🤖 AI 分析失败：API请求超时(15秒)，请检查网络或更换节点');
           return false;
         }
-        console.log(`[Nailya V6.6.0] AI 分析异常: ${err.message}`);
+        console.log(`[Nailya V6.7.0] AI 分析异常: ${err.message}`);
         alert(`🤖 AI 分析失败：${err.message}\n\n当前请求地址：${apiUrl}\n当前模型名：${apiModel}`);
         return false;
       } finally {
@@ -2219,6 +2219,8 @@ ${matchedSlices.join('\n\n')}`;
     // 🚀 补丁三：定位目标 1 - 三级无图保底与部分匹配降级
     // 记忆每个角色最近一次选图的服装标签，跨轮粘性防跳装
     const lastOutfitMemory = new Map();
+    // V6.7.0 差分轮换：记忆每个角色最近一次选中的图，同分池随机轮换时避免连续出同一张
+    const lastPickMemory = new Map();
     function findBestImageForVisTag(charKey, charName, actionStr, exprStr, outfitStr, assetReport, imageCnIndex, favorProfilesMap, ctx) {
         let boundToken = '';
         const currentChatProfiles = favorProfilesMap[charKey] || {};
@@ -2250,6 +2252,16 @@ ${matchedSlices.join('\n\n')}`;
 
         const wantsBathTowel = /浴巾|浴袍|浴衣|洗澡|沐浴|泡澡|温泉|入浴|towel|onsen/i.test(labelAll);
         const wantsUndress = /半脱|衣衫不整|敞开|解扣|掀裙|撩裙|走光|脱|undress/i.test(labelAll);
+
+        // V6.7.0 三段式语义：槽1=动作/体位、槽2=表情、槽3=服装/裸露度。
+        // 场景判定：槽1命中 NSFW 动作键（体位/口交/高潮/捆绑等）或性描写词 → 做爱场景
+        const isSexScene = Array.from(actionHits).some(h => NSFW_ACTION_KEYS.has(h)) ||
+            /做爱|性交|插入|抽插|后入|骑乘|传教士|口交|乳交|手交|足交|高潮|绝顶|捆绑|束缚/i.test(actionStr || '');
+        // 槽位填"无"时该槽完全不参与计分（不加分也不扣分）
+        const NO_SLOT_RE = /^(?:无|没有|不用|none|null|n\/a|-|—|–|~|～)\s*$/i;
+        const poseStr = (actionStr && !NO_SLOT_RE.test(String(actionStr).trim())) ? String(actionStr).trim() : '';
+        const exprStrEff = (exprStr && !NO_SLOT_RE.test(String(exprStr).trim())) ? String(exprStr).trim() : '';
+        const outfitStrEff = (outfitStr && !NO_SLOT_RE.test(String(outfitStr).trim())) ? String(outfitStr).trim() : '';
         
         let pool = charGroup.assets.filter(a => {
             if (wantsNude) return a.isNsfw || a.physio.includes('undress');
@@ -2258,14 +2270,17 @@ ${matchedSlices.join('\n\n')}`;
         });
         if (pool.length === 0) pool = charGroup.assets;
 
-        let bestAsset = null;
-        let maxScore = -Infinity; // V6.6.0：负分也可能当选（保底出图）——原来 -1 起步，惩罚分把所有候选压到 -1 以下时返回空，标签被吞、图片消失
-        const exprHits = matchStdKeysByChinese(exprStr, 'expression');
-        const outfitHits = matchStdKeysByChinese(outfitStr, 'outfit');
+        // V6.7.0 权重表（三段式重构，替换旧"动作1000>服装500>表情300"单表）：
+        // 做爱场景：体位 1500 > 服装 1000 > 表情 500（服装负责挑"裸体做/穿着做"变体，表情只做微调）
+        // 日常场景：表情 1500 > 动作 600 > 服装 500（表情决定性，动作不再压死一切）
+        const W = isSexScene ? { pose: 1500, outfit: 1000, expr: 500 } : { pose: 600, outfit: 500, expr: 1500 };
+
+        const exprHits = matchStdKeysByChinese(exprStrEff, 'expression');
+        const outfitHits = matchStdKeysByChinese(outfitStrEff, 'outfit');
 
         const requestedOutfitKeys = new Set(outfitHits);
-        if (outfitStr) {
-            const ol = String(outfitStr).toLowerCase();
+        if (outfitStrEff) {
+            const ol = outfitStrEff.toLowerCase();
             for (const ok of Object.keys(BASE_TAG_DICT.outfit)) {
                 if (ol.includes(ok)) requestedOutfitKeys.add(ok);
             }
@@ -2285,39 +2300,53 @@ ${matchedSlices.join('\n\n')}`;
             return false;
         };
 
+        // V6.7.0：两阶段选图——先全量打分（去掉随机扰动，让同分精确相等，负分也可当选保底出图），再在同分池里轮换
+        let maxScore = -Infinity;
+        const scoredList = [];
         pool.forEach(a => {
             let score = 0;
-            const actionMatch = checkMatch(a.action, 'action', actionStr) ||
-                Array.from(a.action).some(act => actionHits.has(act) || (imageCnIndex[act] && imageCnIndex[act].some(cw => actionStr.includes(cw)))) ||
-                a.subTokens.some(st => actionStr.includes(st) || (imageCnIndex[st] && imageCnIndex[st].some(cw => actionStr.includes(cw))));
-            if (actionMatch) score += 1000;
+            const poseMatch = poseStr ? (checkMatch(a.action, 'action', poseStr) ||
+                Array.from(a.action).some(act => actionHits.has(act) || (imageCnIndex[act] && imageCnIndex[act].some(cw => poseStr.includes(cw)))) ||
+                a.subTokens.some(st => poseStr.includes(st) || (imageCnIndex[st] && imageCnIndex[st].some(cw => poseStr.includes(cw))))) : false;
+            if (poseStr) score += poseMatch ? W.pose : -800; // 防乱切图铁律：写明了动作/体位却不匹配时重罚
 
-            const exprMatch = checkMatch(a.expression, 'expression', exprStr) ||
-                Array.from(a.expression).some(exp => exprHits.has(exp) || (imageCnIndex[exp] && imageCnIndex[exp].some(cw => exprStr.includes(cw)))) ||
-                a.subTokens.some(st => exprStr.includes(st) || (imageCnIndex[st] && imageCnIndex[st].some(cw => exprStr.includes(cw))));
-            if (exprMatch) score += 300;
+            if (exprStrEff) {
+                const exprMatch = checkMatch(a.expression, 'expression', exprStrEff) ||
+                    Array.from(a.expression).some(exp => exprHits.has(exp) || (imageCnIndex[exp] && imageCnIndex[exp].some(cw => exprStrEff.includes(cw)))) ||
+                    a.subTokens.some(st => exprStrEff.includes(st) || (imageCnIndex[st] && imageCnIndex[st].some(cw => exprStrEff.includes(cw))));
+                if (exprMatch) score += W.expr;
+            }
 
-            if (!wantsNude && !wantsUndress && a.physio.includes('undress')) score -= 150; 
-            if (actionStr && !actionMatch) score -= 800; // 防乱切图铁律
+            if (!wantsNude && !wantsUndress && a.physio.includes('undress')) score -= 150;
 
             if (a.outfit.length === 0) {
                 score += 200;
-            } else {
-                const outfitMatch = checkMatch(a.outfit, 'outfit', outfitStr) ||
-                    Array.from(a.outfit).some(out => outfitHits.has(out) || (imageCnIndex[out] && imageCnIndex[out].some(cw => outfitStr.includes(cw)))) ||
-                    a.subTokens.some(st => outfitStr.includes(st) || (imageCnIndex[st] && imageCnIndex[st].some(cw => outfitStr.includes(cw))));
+            } else if (outfitStrEff) {
+                const outfitMatch = checkMatch(a.outfit, 'outfit', outfitStrEff) ||
+                    Array.from(a.outfit).some(out => outfitHits.has(out) || (imageCnIndex[out] && imageCnIndex[out].some(cw => outfitStrEff.includes(cw)))) ||
+                    a.subTokens.some(st => outfitStrEff.includes(st) || (imageCnIndex[st] && imageCnIndex[st].some(cw => outfitStrEff.includes(cw))));
                 if (outfitMatch) {
-                    score += 500;
+                    score += W.outfit;
                     if (lastOutfit && a.outfit.some(o => lastOutfit.has(o))) score += 120;
                 } else if (requestedOutfitKeys.size > 0) {
-                    score -= 250; 
+                    score -= 250;
                 }
+            } else if (lastOutfit && a.outfit.some(o => lastOutfit.has(o))) {
+                score += 120; // 槽3填"无"：不奖不罚，仅保留防跳装粘性
             }
 
-            score += Math.random(); // 打破同分僵局
-            if (score > maxScore) { maxScore = score; bestAsset = a; }
+            scoredList.push({ a, score });
+            if (score > maxScore) maxScore = score;
         });
-        if (bestAsset) lastOutfitMemory.set(memKey, new Set(bestAsset.outfit));
+        // V6.7.0 差分轮换：同分候选（同一动作/表情的多张差分、或平手的图）随机挑一张，且避免与上一张重复
+        const topPool = scoredList.filter(x => x.score === maxScore).map(x => x.a);
+        const lastPick = lastPickMemory.get(memKey) || null;
+        const rotatedPool = (topPool.length > 1 && lastPick) ? topPool.filter(x => x.baseName !== lastPick) : topPool;
+        const bestAsset = rotatedPool.length > 0 ? rotatedPool[Math.floor(Math.random() * rotatedPool.length)] : (topPool[0] || null);
+        if (bestAsset) {
+            lastPickMemory.set(memKey, bestAsset.baseName);
+            lastOutfitMemory.set(memKey, new Set(bestAsset.outfit));
+        }
         return bestAsset;
     }
 
@@ -2649,16 +2678,19 @@ ${matchedSlices.join('\n\n')}`;
     // V6.6.0：标签菜单——把图包实际可用的中文标签整理成菜单注入给 AI，
     // 杜绝"蓝星纹法师长袍"式文学自创标签（模型对"从列表选词"的服从度远高于自由发挥）
     function buildTagMenuForProfile(assetReport, prof, imgIndex) {
-      const menu = { action: [], expression: [], outfit: [] };
-      const seen = { action: new Set(), expression: new Set(), outfit: new Set() };
+      // V6.7.0：动作菜单拆成「动作(日常)」与「体位(做爱)」两区——体位含高潮/捆绑/通用"做爱"（用户已确认）
+      const menu = { dailyAct: [], pose: [], expression: [], outfit: [] };
+      const seen = { dailyAct: new Set(), pose: new Set(), expression: new Set(), outfit: new Set() };
+      const pushWord = (target, w) => {
+        if (/[\u4e00-\u9fa5]/.test(w) && !seen[target].has(w) && menu[target].length < 14) { menu[target].push(w); seen[target].add(w); }
+      };
       const addCat = (cat, stdKey) => {
+        const target = cat === 'action' ? (NSFW_ACTION_KEYS.has(stdKey) ? 'pose' : 'dailyAct') : cat;
         const dictWords = (BASE_TAG_DICT[cat] && BASE_TAG_DICT[cat][stdKey]) || [];
         const cn = dictWords.find(w => /[\u4e00-\u9fa5]/.test(w));
-        if (cn && !seen[cat].has(cn) && menu[cat].length < 14) { menu[cat].push(cn); seen[cat].add(cn); }
+        if (cn) pushWord(target, cn);
         const cws = imgIndex ? imgIndex[stdKey] : null;
-        if (Array.isArray(cws)) for (const w of cws) {
-          if (/[\u4e00-\u9fa5]/.test(w) && !seen[cat].has(w) && menu[cat].length < 14) { menu[cat].push(w); seen[cat].add(w); }
-        }
+        if (Array.isArray(cws)) for (const w of cws) pushWord(target, w);
       };
       const addGroup = (g) => {
         if (!g) return;
@@ -2671,14 +2703,15 @@ ${matchedSlices.join('\n\n')}`;
       if (prefix && assetReport.byCharToken[prefix]) addGroup(assetReport.byCharToken[prefix]);
       else (assetReport.knownCharTokens || []).forEach(tk => addGroup(assetReport.byCharToken[tk]));
       const fallback = {
-        action: ['站立', '坐姿', '拥抱', '接吻', '躺卧'],
+        dailyAct: ['站立', '坐姿', '拥抱', '接吻', '躺卧', '吃饭'],
+        pose: ['做爱', '正面', '后入', '骑乘', '口交', '高潮', '捆绑'],
         expression: ['微笑', '害羞', '哭泣', '平静'],
-        outfit: ['常服', '泳衣', '睡衣', '便服']
+        outfit: ['常服', '泳衣', '睡衣', '便服', '裸体', '浴巾']
       };
-      ['action', 'expression', 'outfit'].forEach(cat => {
+      ['dailyAct', 'pose', 'expression', 'outfit'].forEach(cat => {
         if (menu[cat].length === 0) menu[cat] = fallback[cat];
       });
-      return { action: menu.action.join('、'), expression: menu.expression.join('、'), outfit: menu.outfit.join('、') };
+      return { dailyAct: menu.dailyAct.join('、'), pose: menu.pose.join('、'), expression: menu.expression.join('、'), outfit: menu.outfit.join('、') };
     }
 
     async function buildInjectedSystemNotes(messages) {
@@ -2743,7 +2776,7 @@ ${matchedSlices.join('\n\n')}`;
           let visInstruction = '';
           if (pluginConfig.enableImagePrompt) {
             const tagMenu = buildTagMenuForProfile(assetReport, prof, cachedAiData?.imageCnIndex || {});
-            visInstruction = `\n【视觉分镜指令】：你无需直接输出图片代码。当剧情发生明显的动作转变、场景切换或情绪起伏时，请在对应段落的末尾或中间（需独立换行），主动呼叫视觉标签。格式严格为：<Vis:中文角色名>动作|表情|服装或裸露度</Vis>（例：<Vis:${prof.name}>接吻|害羞|睡衣</Vis> 或 <Vis:${prof.name}>洗澡|动情|全裸</Vis>）。一轮回复中允许在不同段落穿插 1~3 次以配合长文演出。注意：除非剧情明确穿脱，否则请保持服装标签连贯！\n【可用标签菜单 · 三个槽位必须从下列词中选用，禁止自创描写（如"蓝星纹法师长袍"这类文学词无法匹配图片）】\n- 动作：${tagMenu.action}\n- 表情：${tagMenu.expression}\n- 服装：${tagMenu.outfit}`;
+            visInstruction = `\n【视觉分镜指令】：你无需直接输出图片代码。当剧情发生明显的动作转变、场景切换或情绪起伏时，请在对应段落的末尾或中间（需独立换行），主动呼叫视觉标签。格式严格为：<Vis:中文角色名>动作或体位|表情|服装或裸露度</Vis>（例：<Vis:${prof.name}>接吻|害羞|睡衣</Vis> 或 <Vis:${prof.name}>后入|无|裸体</Vis>）。一轮回复中允许在不同段落穿插 1~3 次以配合长文演出。三槽位语义与选词规则：\n- 槽1 动作/体位：做爱等亲密场景必须从【体位词】选词（含高潮、捆绑与通用词"做爱"）；日常场景从【动作词】选词，剧情无明确动作时填"无"。\n- 槽2 表情：日常对话从【表情词】选词（这是日常选图的决定性信号）；做爱时若无明确表情可填"无"。\n- 槽3 服装/裸露度：穿着衣服时从【服装词】选词；全裸填"裸体"、泡澡填"浴巾"、半脱填"半脱"。除非剧情明确穿脱，否则请保持服装标签连贯！\n【可用标签菜单 · 三个槽位必须从下列词中选用，禁止自创描写（如"蓝星纹法师长袍"这类文学词无法匹配图片）】\n- 动作：${tagMenu.dailyAct}\n- 体位：${tagMenu.pose}\n- 表情：${tagMenu.expression}\n- 服装：${tagMenu.outfit}`;
           }
 
           // V6.6.0：移除 V6.1.0 引入的「文学巨匠引擎」——它与视觉指令抢格式遵从度，且与"Vis 严禁进 thinking"自相矛盾
@@ -2789,7 +2822,7 @@ ${wallLines}
         topNote = `【⏰ 游戏内时间 · 必读】\n当前日期：${d0.month || 1}月${d0.day || 1}日\n${dateLines}\n若本轮剧情跨夜/跳到第二天/跳过N天，必须在回复最末尾输出 <时间推进>N</时间推进>；同一天内则不要输出。`;
         if (pluginConfig.enableImagePrompt) {
           const visNames = list.slice(0, 3).map(([, p]) => p.name).join('、');
-          topNote += `\n【📷 视觉分镜提醒】当剧情发生动作转变、场景切换或情绪起伏时，在对应段落末尾呼叫视觉标签：<Vis:${d0.name}>动作|表情|服装</Vis>（例：<Vis:${d0.name}>接吻|害羞|睡衣</Vis>），一轮回复穿插 1~3 次。${list.length > 1 ? `出场角色：${visNames}。` : ''}`;
+          topNote += `\n【📷 视觉分镜提醒】当剧情发生动作转变、场景切换或情绪起伏时，在对应段落末尾呼叫视觉标签：<Vis:${d0.name}>动作或体位|表情|服装</Vis>（例：<Vis:${d0.name}>接吻|害羞|睡衣</Vis>），一轮回复穿插 1~3 次。${list.length > 1 ? `出场角色：${visNames}。` : ''}`;
         }
       }
 
@@ -3035,7 +3068,7 @@ ${wallLines}
             <div class="logo-title">
               ${ICONS.logo}
               <span>NAILYA · 奈亚</span>
-              <span class="logo-ver">V6.6.0 极光星云</span>
+              <span class="logo-ver">V6.7.0 极光星云</span>
             </div>
             <div class="header-right">
               <button class="btn-glass primary" id="btn-run-ai-analyze" title="结合图包人名锚点与世界书进行全卡AI识别">
@@ -4258,7 +4291,7 @@ ${wallLines}
       backupCard.className = 'profile-card';
       backupCard.innerHTML = `
         <div class="card-header">
-          <span class="char-name">${ICONS.shield}<span>奈亚 V6.6.0 全量数据备份与多通道导出中心</span></span>
+          <span class="char-name">${ICONS.shield}<span>奈亚 V6.7.0 全量数据备份与多通道导出中心</span></span>
         </div>
         <div style="font-size:11px; color:var(--text-sub); line-height:1.6;">
           已存储：<strong>${cardCount}</strong> 张角色卡档案 ｜ <strong>${aiCacheCount}</strong> 张角色卡 AI 识卡缓存 ｜ <strong>${stCount}</strong> 套酒馆预设。
@@ -4293,7 +4326,7 @@ ${wallLines}
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `nailya_v6.6.0_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
+          a.download = `nailya_v6.7.0_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -4357,7 +4390,7 @@ ${wallLines}
         return userText;
       });
     } catch (e) {
-      console.log(`[Nailya V6.6.0] input handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.7.0] input handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -4368,7 +4401,7 @@ ${wallLines}
         return aiText;
       });
     } catch (e) {
-      console.log(`[Nailya V6.6.0] output handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.7.0] output handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -4423,7 +4456,7 @@ ${wallLines}
         return out;
       });
     } catch (e) {
-      console.log(`[Nailya V6.6.0] display handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.7.0] display handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -4457,12 +4490,12 @@ ${wallLines}
         return outMessages;
       });
     } catch (e) {
-      console.log(`[Nailya V6.6.0] beforeRequest replacer 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.7.0] beforeRequest replacer 注册异常: ${e.message}`);
     }
 
     await ensureStoredDataLoaded();
-    console.log('[Nailya V6.6.0] 星云×极光双主题毛玻璃重构版初始化成功');
+    console.log('[Nailya V6.7.0] 星云×极光双主题毛玻璃重构版初始化成功');
   } catch (err) {
-    console.log(`[Nailya V6.6.0] 初始化异常: ${err.message}`);
+    console.log(`[Nailya V6.7.0] 初始化异常: ${err.message}`);
   }
 })();
