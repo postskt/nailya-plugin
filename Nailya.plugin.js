@@ -1,7 +1,7 @@
 //@name favor_physio_manager
-//@display-name 奈亚V6.4.0·星云极光
+//@display-name 奈亚V6.5.0·星云极光
 //@api 3.0
-//@version 6.4.0
+//@version 6.5.0
 //@update-url https://raw.githubusercontent.com/postskt/nailya-plugin/main/Nailya.plugin.js
 
 (async () => {
@@ -83,7 +83,7 @@
       ...['action', 'chat', 'hamburger'].map(async (loc) => {
         try {
           const btnRes = await registerButtonSafe({
-            name: '奈亚V6.4.0',
+            name: '奈亚V6.5.0',
             icon: PLUGIN_ICON,
             iconType: PLUGIN_ICON_TYPE,
             location: loc,
@@ -91,13 +91,13 @@
           }, onPluginButtonClick);
           if (btnRes && btnRes.id) registeredUIParts.push(btnRes.id);
         } catch (btnErr) {
-          console.log(`[Nailya V6.4.0] 注册 ${loc} 按钮异常: ${btnErr.message}`);
+          console.log(`[Nailya V6.5.0] 注册 ${loc} 按钮异常: ${btnErr.message}`);
         }
       }),
       (async () => {
         try {
           const setRes = await registerSettingSafe(
-            '奈亚V6.4.0 星云极光·好感·生理·穿搭·酒馆预设',
+            '奈亚V6.5.0 星云极光·好感·生理·穿搭·酒馆预设',
             onPluginButtonClick,
             PLUGIN_ICON,
             PLUGIN_ICON_TYPE,
@@ -105,7 +105,7 @@
           );
           if (setRes && setRes.id) registeredUIParts.push(setRes.id);
         } catch (setErr) {
-          console.log(`[Nailya V6.4.0] 注册设置异常: ${setErr.message}`);
+          console.log(`[Nailya V6.5.0] 注册设置异常: ${setErr.message}`);
         }
       })()
     ]);
@@ -218,7 +218,7 @@
         }
         dataLoaded = true;
       } catch (e) {
-        console.log(`[Nailya V6.4.0] 读取数据异常: ${e.message}`);
+        console.log(`[Nailya V6.5.0] 读取数据异常: ${e.message}`);
       }
     }
 
@@ -249,7 +249,7 @@
           dirtyStoreKeys.clear();
           if (tasks.length > 0) await Promise.all(tasks);
         } catch (e) {
-          console.log(`[Nailya V6.4.0] 保存数据失败: ${e.message}`);
+          console.log(`[Nailya V6.5.0] 保存数据失败: ${e.message}`);
         }
       };
 
@@ -299,7 +299,7 @@
     function exportFullBackupJson() {
       const payload = {
         plugin: 'favor_physio_manager_nailya',
-        version: '6.4.0',
+        version: '6.5.0',
         exportedAt: new Date().toISOString(),
         favorProfiles,
         cardAiCache,
@@ -941,7 +941,7 @@
       const result = {
         scripts: imageRegexes,
         template: '', // 优化：默认置空，让聊天API依据原卡上下文自主输出，不强套生硬格式
-        stripExt: !assetsHaveExt, // 无模板时跟随资源实际后缀：资源带.ext则保留，避免 {{raw::}} 引用不到
+        stripExt: true, // V6.5.0：恢复 V5.5.7 原始行为
         combinesCharAndTag: false,
         sampleMatched: false,
         activeScript: null
@@ -1575,7 +1575,7 @@ ${coreSchemaInstruction}
           alert('🤖 AI 分析失败：API请求超时(15秒)，请检查网络或更换节点');
           return false;
         }
-        console.log(`[Nailya V6.4.0] AI 分析异常: ${err.message}`);
+        console.log(`[Nailya V6.5.0] AI 分析异常: ${err.message}`);
         alert(`🤖 AI 分析失败：${err.message}\n\n当前请求地址：${apiUrl}\n当前模型名：${apiModel}`);
         return false;
       } finally {
@@ -2321,77 +2321,7 @@ ${matchedSlices.join('\n\n')}`;
         return bestAsset;
     }
 
-
-    function buildImageCodeForAsset(assetReport, bestAsset) {
-        const tpl = assetReport.regexInfo?.template || '{{raw::{name}}}';
-        const targetName = assetReport.regexInfo?.stripExt ? bestAsset.baseName : bestAsset.rawName;
-        let finalCode = tpl;
-        if (tpl.includes('{char}') && tpl.includes('{state}')) {
-            const prefix = bestAsset.charToken;
-            const rest = targetName.slice(prefix.length).replace(/^[_.\-\s]+/, '');
-            finalCode = tpl.replace('{char}', prefix).replace('{state}', rest);
-        } else if (tpl.includes('{name}')) {
-            finalCode = tpl.replace('{name}', targetName);
-        }
-        
-        finalCode = finalCode.replace(/“/g, '"').replace(/”/g, '"').trim();
-        if (finalCode.startsWith('<') && !finalCode.endsWith('>')) {
-            finalCode += '>';
-        }
-        
-        return finalCode;
-    }
-
-
-    // 兜底自动选图：AI 没输出 <Vis:> 标签时，用中文语境雷达扫描"AI正文+你的最后一条消息"，在单角色卡的文末自动补一张立绘
-    async function appendAutoImageFromContext(out, ctx, assetReport, imgIndex) {
-      try {
-        if (!ctx?.key || !assetReport || !(assetReport.knownCharTokens || []).length) return out;
-        const chatList = profilesOfChat(ctx.key, ctx);
-        if (chatList.length !== 1) return out; // 多角色卡不做自动选图，避免张冠李戴
-        const prof = chatList[0][1];
-        // 语境来源 = AI 正文 + 玩家最后一条消息（动作经常只出现在玩家输入里，只扫 AI 文本会漏）
-        let scanText = out;
-        try {
-          const ci = await Risuai.getCurrentCharacterIndex();
-          const chi = await Risuai.getCurrentChatIndex();
-          const chatNow = await Risuai.getChatFromIndex(ci, chi);
-          const ms = (chatNow && chatNow.message) || [];
-          for (let i = ms.length - 1; i >= 0; i--) {
-            const m = ms[i];
-            if (m && m.role === 'user' && m.data) { scanText = String(m.data).slice(-300) + '\n' + out; break; }
-          }
-        } catch (_) {}
-        const detected = analyzeDialogueContext([], scanText, imgIndex, ctx.key);
-        const hasAction = detected.actions.size > 0;
-        const hasOutfitShift = Array.from(detected.outfits).some(o => o !== 'normal');
-        if (!hasAction && !hasOutfitShift) return out;
-
-        const toLabel = (keys) => {
-          const parts = [];
-          for (const k of keys) {
-            parts.push(k);
-            const cws = imgIndex ? imgIndex[k] : null;
-            if (Array.isArray(cws)) for (const cw of cws) parts.push(cw);
-          }
-          return parts.join('|');
-        };
-
-        let outfitLabel = toLabel(detected.outfits);
-        const physioKeys = Array.from(detected.physio);
-        if (physioKeys.length) outfitLabel += '|' + physioKeys.join('|');
-        if (detected.isNsfwScene) outfitLabel += '|全裸|做爱'; // 触发裸池，防止做爱剧情自动补了穿衣图
-        const bestAsset = findBestImageForVisTag(
-          ctx.key, prof.name,
-          toLabel(detected.actions), toLabel(detected.expressions), outfitLabel,
-          assetReport, imgIndex, favorProfiles, ctx
-        );
-        if (!bestAsset) return out;
-        return out + '\n' + buildImageCodeForAsset(assetReport, bestAsset);
-      } catch (_) {
-        return out;
-      }
-    }
+    // V6.5.0：移除「雷达自动补图」与图片代码构建辅助函数——显示链路整体回归 V5.5.7 实证逻辑
 
     // ------------------------------------------------------------------------
     // 7. 精炼核心规则版：服装、丝袜光泽与身材细节提示词构建器
@@ -2705,9 +2635,9 @@ ${matchedSlices.join('\n\n')}`;
         cleanedText = cleanedText.replace(/\s*<好感度事件>[\s\S]*?<\/好感度事件>\s*/gi, '');
       }
 
-      // V6.4.0：Vis 标签改回 V5.5.7 的显示层替换方案——输出层不再碰 Vis 标签，
+      // V6.5.0：Vis 标签改回 V5.5.7 的显示层替换方案——输出层不再碰 Vis 标签，
       // 存档里保留 <Vis:> 原文（这就是"以前点开全文能看到标签"的原因），图片在渲染时替换。
-      cleanedText = cleanedText.replace(/<img\s+cmd=["'][^"']+["']\s*\/?>/gi, '');
+      // V6.5.0：连同 <img cmd> 清除也一并移除，输出层与 V5.5.7 完全一致。
 
       return cleanedText;
     }
@@ -2780,7 +2710,7 @@ ${matchedSlices.join('\n\n')}`;
             visInstruction = `\n【视觉分镜指令】：你无需直接输出图片代码。当剧情发生明显的动作转变、场景切换或情绪起伏时，请在对应段落的末尾或中间（需独立换行），主动呼叫视觉标签。格式严格为：<Vis:中文角色名>动作|表情|服装或裸露度</Vis>（例：<Vis:${prof.name}>接吻|害羞|睡衣</Vis> 或 <Vis:${prof.name}>洗澡|动情|全裸</Vis>）。一轮回复中允许在不同段落穿插 1~3 次以配合长文演出。注意：除非剧情明确穿脱，否则请保持服装标签连贯！`;
           }
 
-          // V6.4.0：移除 V6.1.0 引入的「文学巨匠引擎」——它与视觉指令抢格式遵从度，且与"Vis 严禁进 thinking"自相矛盾
+          // V6.5.0：移除 V6.1.0 引入的「文学巨匠引擎」——它与视觉指令抢格式遵从度，且与"Vis 严禁进 thinking"自相矛盾
 
           const injectedText = `[System Note (${prof.name}${prof.origName && prof.origName !== prof.name ? ` / ${prof.origName}` : ''}): Current Time is Month ${prof.month}, Day ${prof.day}. Character Age: ${prof.age || 18}. Relationship with User: ${prof.relationshipTag || stage.title}. Favorability: ${prof.favor}/200 (Stage: ${stage.title}). Physiological State: ${physioText}. Pregnancy Risk: ${prof.pregnancyRisk}%. Always refer to this character by her Chinese name "${prof.name}" in Chinese narrative.]
 【好感度档位行为基线 — 不可降级】
@@ -3069,7 +2999,7 @@ ${wallLines}
             <div class="logo-title">
               ${ICONS.logo}
               <span>NAILYA · 奈亚</span>
-              <span class="logo-ver">V6.4.0 极光星云</span>
+              <span class="logo-ver">V6.5.0 极光星云</span>
             </div>
             <div class="header-right">
               <button class="btn-glass primary" id="btn-run-ai-analyze" title="结合图包人名锚点与世界书进行全卡AI识别">
@@ -4292,7 +4222,7 @@ ${wallLines}
       backupCard.className = 'profile-card';
       backupCard.innerHTML = `
         <div class="card-header">
-          <span class="char-name">${ICONS.shield}<span>奈亚 V6.4.0 全量数据备份与多通道导出中心</span></span>
+          <span class="char-name">${ICONS.shield}<span>奈亚 V6.5.0 全量数据备份与多通道导出中心</span></span>
         </div>
         <div style="font-size:11px; color:var(--text-sub); line-height:1.6;">
           已存储：<strong>${cardCount}</strong> 张角色卡档案 ｜ <strong>${aiCacheCount}</strong> 张角色卡 AI 识卡缓存 ｜ <strong>${stCount}</strong> 套酒馆预设。
@@ -4327,7 +4257,7 @@ ${wallLines}
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `nailya_v6.4.0_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
+          a.download = `nailya_v6.5.0_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -4391,7 +4321,7 @@ ${wallLines}
         return userText;
       });
     } catch (e) {
-      console.log(`[Nailya V6.4.0] input handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.5.0] input handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -4402,7 +4332,7 @@ ${wallLines}
         return aiText;
       });
     } catch (e) {
-      console.log(`[Nailya V6.4.0] output handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.5.0] output handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -4417,31 +4347,32 @@ ${wallLines}
             .replace(/\s*<时间推进>[\s\S]*?<\/时间推进>\s*/gi, '');
         }
 
-        // 拦截并替换视觉意图标签；AI 未输出 <Vis:> 时，用中文语境雷达从正文自动选图兜底
-        const hadVisTag = out.includes('<Vis:');
-        if (hadVisTag || pluginConfig.enableImagePrompt) {
+        // 拦截并替换视觉意图标签（V6.5.0：逐字恢复 V5.5.7 实证可用的显示层替换逻辑）
+        if (out.includes('<Vis:')) {
             const ctx = await getFastContext(false);
             const assetReport = await getCachedCardReport(ctx, false);
             const cachedAiData = cardAiCache[ctx.key] || {};
             const imgIndex = cachedAiData.imageCnIndex || {};
 
-            if (hadVisTag) {
-            // 将 + 改为 *，允许 AI 留空某个槽位
-            const visRegex = /<Vis:([^>]+)>([^|]*)\|([^|]*)\|([^<]*)<\/Vis>/gi;
+            const visRegex = /<Vis:([^>]+)>([^|]+)\|([^|]+)\|([^<]+)<\/Vis>/gi;
             out = out.replace(visRegex, (match, charName, action, expression, outfit) => {
-                // 增加 trim() 处理，防止 AI 输出空格导致匹配精度下降
-                const safeAction = (action || '').trim();
-                const safeExpression = (expression || '').trim();
-                const safeOutfit = (outfit || '').trim();
-                const bestAsset = findBestImageForVisTag(ctx.key, charName.trim(), safeAction, safeExpression, safeOutfit, assetReport, imgIndex, favorProfiles, ctx);
-                if (!bestAsset) return ''; 
+                const bestAsset = findBestImageForVisTag(ctx.key, charName.trim(), action, expression, outfit, assetReport, imgIndex, favorProfiles, ctx);
+                if (!bestAsset) return '';
 
-                    return buildImageCodeForAsset(assetReport, bestAsset);
-                });
-            } else if (!/\{\{(?:raw|asset|img|image|emotion)::/i.test(out) && !/<img[\s>]/i.test(out)) {
-                // output 阶段已注入过图片代码时不再重复补图，防止双图
-                out = await appendAutoImageFromContext(out, ctx, assetReport, imgIndex);
-            }
+                const tpl = assetReport.regexInfo?.template || '<img:{name}>';
+                const targetName = assetReport.regexInfo?.stripExt ? bestAsset.baseName : bestAsset.rawName;
+
+                let finalCode = tpl;
+                if (tpl.includes('{char}') && tpl.includes('{state}')) {
+                    const prefix = bestAsset.charToken;
+                    const rest = targetName.slice(prefix.length).replace(/^[_.\-\s]+/, '');
+                    finalCode = tpl.replace('{char}', prefix).replace('{state}', rest);
+                } else if (tpl.includes('{name}')) {
+                    finalCode = tpl.replace('{name}', targetName);
+                }
+
+                return finalCode;
+            });
         }
 
         if (out.includes('<thinking>') || out.includes('<thought>')) {
@@ -4456,7 +4387,7 @@ ${wallLines}
         return out;
       });
     } catch (e) {
-      console.log(`[Nailya V6.4.0] display handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.5.0] display handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -4490,12 +4421,12 @@ ${wallLines}
         return outMessages;
       });
     } catch (e) {
-      console.log(`[Nailya V6.4.0] beforeRequest replacer 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.5.0] beforeRequest replacer 注册异常: ${e.message}`);
     }
 
     await ensureStoredDataLoaded();
-    console.log('[Nailya V6.4.0] 星云×极光双主题毛玻璃重构版初始化成功');
+    console.log('[Nailya V6.5.0] 星云×极光双主题毛玻璃重构版初始化成功');
   } catch (err) {
-    console.log(`[Nailya V6.4.0] 初始化异常: ${err.message}`);
+    console.log(`[Nailya V6.5.0] 初始化异常: ${err.message}`);
   }
 })();

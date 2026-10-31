@@ -109,8 +109,9 @@
     T('display:handler已注册', typeof displayFn === 'function');
     const disp1 = await displayFn('正文内容\n<Vis:尤娜>接吻|害羞|常服</Vis>');
     T('display:Vis标签替换为图片代码', !disp1.includes('<Vis:') && /yuna_kiss/.test(disp1), disp1.slice(-50));
-    const disp2 = await displayFn('他们紧紧拥抱着，气氛温馨。');
-    T('display:无Vis时自动补图', /yuna_/.test(disp2), disp2.slice(-50));
+    const disp2raw = '他们紧紧拥抱着，气氛温馨。';
+    const disp2 = await displayFn(disp2raw);
+    T('display:无Vis时保持原文(V5.5.7语义)', disp2 === disp2raw, JSON.stringify(disp2.slice(-40)));
     const disp3 = await displayFn('正文一\n{{raw::yuna_hug_happy.png}}\n完');
     T('display:已含图片代码不再重复补图', (disp3.match(/\{\{raw::/g) || []).length === 1, disp3);
     const disp4 = await displayFn('无任何标签的普通对话，随便聊聊天。');
@@ -151,19 +152,6 @@
     __results.push(['FAIL', '临时简档测试异常', (e.stack || e.message).split('\n').slice(0, 4).join(' | ')]);
   }
 
-
-  // ===== 10. 雷达覆盖玩家消息（V6.3.1）=====
-  try {
-    const dispFn10 = __captured.handlers.find(h => h[0] === 'display')[1];
-    globalThis.__testChat.message.push({ role: 'user', data: '我轻轻抱住你，揉了揉你的头发' });
-    const dispA = await dispFn10('她轻轻点了点头。');
-    T('雷达:玩家消息中的动作能触发补图', /yuna_/.test(dispA), dispA.slice(-45));
-    globalThis.__testChat.message.pop();
-    const dispB = await dispFn10('她轻轻点了点头。');
-    T('雷达:玩家消息移除后不再补图', dispB === '她轻轻点了点头。', JSON.stringify(dispB));
-  } catch (e) {
-    __results.push(['FAIL', '雷达测试异常', String(e.message).slice(0, 80)]);
-  }
 
   let pass = 0, fail = 0;
   console.log('\n========== 奈亚V6.0.1 自动化测试报告 ==========');
