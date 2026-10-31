@@ -1,7 +1,7 @@
 //@name favor_physio_manager
-//@display-name 奈亚V6.7.0·星云极光
+//@display-name 奈亚V6.8.0·星云极光
 //@api 3.0
-//@version 6.7.0
+//@version 6.8.0
 //@update-url https://raw.githubusercontent.com/postskt/nailya-plugin/main/Nailya.plugin.js
 
 (async () => {
@@ -83,7 +83,7 @@
       ...['action', 'chat', 'hamburger'].map(async (loc) => {
         try {
           const btnRes = await registerButtonSafe({
-            name: '奈亚V6.7.0',
+            name: '奈亚V6.8.0',
             icon: PLUGIN_ICON,
             iconType: PLUGIN_ICON_TYPE,
             location: loc,
@@ -91,13 +91,13 @@
           }, onPluginButtonClick);
           if (btnRes && btnRes.id) registeredUIParts.push(btnRes.id);
         } catch (btnErr) {
-          console.log(`[Nailya V6.7.0] 注册 ${loc} 按钮异常: ${btnErr.message}`);
+          console.log(`[Nailya V6.8.0] 注册 ${loc} 按钮异常: ${btnErr.message}`);
         }
       }),
       (async () => {
         try {
           const setRes = await registerSettingSafe(
-            '奈亚V6.7.0 星云极光·好感·生理·穿搭·酒馆预设',
+            '奈亚V6.8.0 星云极光·好感·生理·穿搭·酒馆预设',
             onPluginButtonClick,
             PLUGIN_ICON,
             PLUGIN_ICON_TYPE,
@@ -105,7 +105,7 @@
           );
           if (setRes && setRes.id) registeredUIParts.push(setRes.id);
         } catch (setErr) {
-          console.log(`[Nailya V6.7.0] 注册设置异常: ${setErr.message}`);
+          console.log(`[Nailya V6.8.0] 注册设置异常: ${setErr.message}`);
         }
       })()
     ]);
@@ -218,7 +218,7 @@
         }
         dataLoaded = true;
       } catch (e) {
-        console.log(`[Nailya V6.7.0] 读取数据异常: ${e.message}`);
+        console.log(`[Nailya V6.8.0] 读取数据异常: ${e.message}`);
       }
     }
 
@@ -249,7 +249,7 @@
           dirtyStoreKeys.clear();
           if (tasks.length > 0) await Promise.all(tasks);
         } catch (e) {
-          console.log(`[Nailya V6.7.0] 保存数据失败: ${e.message}`);
+          console.log(`[Nailya V6.8.0] 保存数据失败: ${e.message}`);
         }
       };
 
@@ -299,7 +299,7 @@
     function exportFullBackupJson() {
       const payload = {
         plugin: 'favor_physio_manager_nailya',
-        version: '6.7.0',
+        version: '6.8.0',
         exportedAt: new Date().toISOString(),
         favorProfiles,
         cardAiCache,
@@ -1575,7 +1575,7 @@ ${coreSchemaInstruction}
           alert('🤖 AI 分析失败：API请求超时(15秒)，请检查网络或更换节点');
           return false;
         }
-        console.log(`[Nailya V6.7.0] AI 分析异常: ${err.message}`);
+        console.log(`[Nailya V6.8.0] AI 分析异常: ${err.message}`);
         alert(`🤖 AI 分析失败：${err.message}\n\n当前请求地址：${apiUrl}\n当前模型名：${apiModel}`);
         return false;
       } finally {
@@ -2416,6 +2416,50 @@ ${matchedSlices.join('\n\n')}`;
       return daysToAdd;
     }
 
+    // ------------------------------------------------------------------------
+    // V6.8.0 可见时间条：完整日期时间工具（30天制月份，与旧"第X天"体系对齐）
+    // ------------------------------------------------------------------------
+    function nyPad2(n) { return String(n).padStart(2, '0'); }
+    // AI 上报值的规范化：年月日时分各自钳制到合法区间，缺省回退参考档案或默认值
+    function nyNormalizeTime(y, mo, d, h, mi, refProf) {
+      y = Math.max(1, Math.min(9999, y || (refProf && refProf.year) || 2000));
+      mo = Math.max(1, Math.min(12, mo || (refProf && refProf.month) || 1));
+      d = Math.max(1, Math.min(30, d || (refProf && refProf.day) || 1));
+      h = ((h == null ? (refProf && refProf.hour) || 12 : h) % 24 + 24) % 24;
+      mi = ((mi == null ? (refProf && refProf.minute) || 0 : mi) % 60 + 60) % 60;
+      return { year: y, month: mo, day: d, hour: h, minute: mi };
+    }
+    function nyTimeSerial(t) { return (t.year || 2000) * 360 + ((t.month || 1) - 1) * 30 + ((t.day || 1) - 1); }
+    // 只会前进的钟：+N 分钟，自动进位 时→日→月→年（30天/月，12月/年）
+    function nyRollForward(prof, addMinutes) {
+      let total = (prof.hour || 0) * 60 + (prof.minute || 0) + addMinutes;
+      const carryDay = Math.floor(total / 1440);
+      total %= 1440;
+      prof.hour = Math.floor(total / 60);
+      prof.minute = total % 60;
+      if (carryDay > 0) {
+        prof.day = (prof.day || 1) + carryDay;
+        while (prof.day > 30) {
+          prof.day -= 30;
+          prof.month = (prof.month || 1) + 1;
+          if (prof.month > 12) { prof.month = 1; prof.year = (prof.year || 2000) + 1; }
+        }
+      }
+    }
+    // 懒惰铺底：档案没有完整时刻时补一个随机起点（AI 首次上报可无条件覆盖确立）
+    function ensureGameTime(prof) {
+      if (!prof) return prof;
+      if (prof.year == null) {
+        prof.year = 2000 + Math.floor(Math.random() * 26); // 2000~2025
+        if (prof.month == null) prof.month = 1 + Math.floor(Math.random() * 12);
+        if (prof.day == null) prof.day = 1 + Math.floor(Math.random() * 28);
+        if (prof.hour == null) prof.hour = 8 + Math.floor(Math.random() * 14);
+        if (prof.minute == null) prof.minute = Math.floor(Math.random() * 12) * 5;
+        prof.timeUnset = true; // AI 首次上报可无条件确立时间；确立后只许前进不许倒流
+      }
+      return prof;
+    }
+
     function calculateFavorGain(userText, currentFavor) {
       let baseGain = Math.floor(Math.random() * 5) + 2;
       const t = String(userText || '').toLowerCase();
@@ -2612,6 +2656,57 @@ ${matchedSlices.join('\n\n')}`;
       }
       lastUserInputAddedDays = false;
 
+      // V6.8.0 可见时间条：解析 AI 上报的绝对时刻 <游戏时间>20XX年XX月XX日 XX时XX分</游戏时间>
+      let gameTimeReported = false;
+      if (cleanedText.includes('<游戏时间>')) {
+        cleanedText = cleanedText.replace(/\s*<游戏时间>[\s\S]*?<\/游戏时间>\s*/gi, '\n'); // 无论格式好坏都吞掉，别漏进正文
+        const gm = String(text || '').match(/<游戏时间>\s*(\d{1,4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日(?:\s*(\d{1,2})\s*[时:：]\s*(\d{1,2})\s*分?)?\s*<\/游戏时间>/i);
+        if (gm) {
+          try {
+            await ensureStoredDataLoaded();
+            const ctx = await getFastContext(false);
+            if (ctx.key) {
+              const list = profilesOfChat(ctx.key, ctx); // 必须传 ctx 对象（历史最大隐性bug）
+              if (list.length > 0) {
+                const nt = nyNormalizeTime(parseInt(gm[1], 10), parseInt(gm[2], 10), parseInt(gm[3], 10),
+                  gm[4] != null ? parseInt(gm[4], 10) : null, gm[5] != null ? parseInt(gm[5], 10) : null,
+                  list[0] ? list[0][1] : null);
+                for (const [, prof] of list) {
+                  ensureGameTime(prof);
+                  const oldSerial = nyTimeSerial(prof);
+                  const newSerial = nt.year * 360 + (nt.month - 1) * 30 + (nt.day - 1);
+                  const establish = prof.timeUnset === true; // 未确立时 AI 首次上报无条件覆盖随机铺底
+                  if (!establish && newSerial * 1440 + nt.hour * 60 + nt.minute < oldSerial * 1440 + (prof.hour || 0) * 60 + (prof.minute || 0)) {
+                    continue; // 时间倒流，拒绝该上报（时间停住总比显示乱数字强）
+                  }
+                  const dayDelta = newSerial - oldSerial;
+                  prof.year = nt.year; prof.month = nt.month; prof.day = nt.day;
+                  prof.hour = nt.hour; prof.minute = nt.minute;
+                  prof.timeUnset = false;
+                  if (dayDelta > 0 && (prof.age || 18) >= 14) updatePhysiology(prof, dayDelta, ''); // 跨天走生理演算
+                }
+                gameTimeReported = true;
+                await saveStoredData(false, ['profiles']);
+              }
+            }
+          } catch (_) {}
+        }
+      }
+      // 忘报保底：本回合既没有绝对时刻、也没有天数推进 → 自动 +10 分钟（只会前进，永不报错）
+      if (!gameTimeReported && aiAdvanceDays === 0) {
+        try {
+          await ensureStoredDataLoaded();
+          const ctxF = await getFastContext(false);
+          if (ctxF.key) {
+            const listF = profilesOfChat(ctxF.key, ctxF);
+            if (listF.length > 0) {
+              for (const [, prof] of listF) { ensureGameTime(prof); nyRollForward(prof, 10); }
+              await saveStoredData(false, ['profiles']);
+            }
+          }
+        } catch (_) {}
+      }
+
       // AI 叙事中的性行为同样结算受孕（本回合玩家输入已结算过则跳过，防止一次行为算两次）
       if (!lastUserInputHadSex && SEX_ACT_REGEX.test(String(cleanedText || ''))) {
         try {
@@ -2667,6 +2762,21 @@ ${matchedSlices.join('\n\n')}`;
       // V6.6.0：Vis 标签改回 V5.5.7 的显示层替换方案——输出层不再碰 Vis 标签，
       // 存档里保留 <Vis:> 原文（这就是"以前点开全文能看到标签"的原因），图片在渲染时替换。
       // V6.6.0：连同 <img cmd> 清除也一并移除，输出层与 V5.5.7 完全一致。
+
+      // V6.8.0 可见时间条：把本回合最终时刻以纯文字标记追加进存档（显示层再替换成蓝天电子报时徽章）
+      try {
+        cleanedText = cleanedText.replace(/\s*<NyTime>[^<]*<\/NyTime>\s*/g, '\n');
+        await ensureStoredDataLoaded();
+        const ctxT = await getFastContext(false);
+        if (ctxT.key) {
+          const listT = profilesOfChat(ctxT.key, ctxT);
+          if (listT.length > 0) {
+            const p0 = ensureGameTime(listT[0][1]);
+            const stamp = `${p0.year}年${p0.month}月${p0.day}日|${nyPad2(p0.hour || 0)}:${nyPad2(p0.minute || 0)}`;
+            cleanedText = cleanedText.replace(/\s*$/, '') + `\n<NyTime>${stamp}</NyTime>`;
+          }
+        }
+      } catch (_) {}
 
       return cleanedText;
     }
@@ -2781,7 +2891,8 @@ ${matchedSlices.join('\n\n')}`;
 
           // V6.6.0：移除 V6.1.0 引入的「文学巨匠引擎」——它与视觉指令抢格式遵从度，且与"Vis 严禁进 thinking"自相矛盾
 
-          const injectedText = `[System Note (${prof.name}${prof.origName && prof.origName !== prof.name ? ` / ${prof.origName}` : ''}): Current Time is Month ${prof.month}, Day ${prof.day}. Character Age: ${prof.age || 18}. Relationship with User: ${prof.relationshipTag || stage.title}. Favorability: ${prof.favor}/200 (Stage: ${stage.title}). Physiological State: ${physioText}. Pregnancy Risk: ${prof.pregnancyRisk}%. Always refer to this character by her Chinese name "${prof.name}" in Chinese narrative.]
+          ensureGameTime(prof);
+          const injectedText = `[System Note (${prof.name}${prof.origName && prof.origName !== prof.name ? ` / ${prof.origName}` : ''}): Current in-story Time: ${prof.year}年${prof.month}月${prof.day}日 ${nyPad2(prof.hour || 0)}:${nyPad2(prof.minute || 0)}. Character Age: ${prof.age || 18}. Relationship with User: ${prof.relationshipTag || stage.title}. Favorability: ${prof.favor}/200 (Stage: ${stage.title}). Physiological State: ${physioText}. Pregnancy Risk: ${prof.pregnancyRisk}%. Always refer to this character by her Chinese name "${prof.name}" in Chinese narrative.]
 【好感度档位行为基线 — 不可降级】
 角色:${prof.name} (年龄:${prof.age || 18}岁 | 真实关系:${prof.relationshipTag || stage.title} | 核心性格:${prof.personality || '遵循原卡设定'}) | 当前档位:${stage.title}(${prof.favor}/200)
 ${behavior}
@@ -2791,7 +2902,7 @@ ${wallLines}
 【里程碑与时间流逝自动上报 — 必须执行】
 1. 当上面某道墙被剧情真正跨过时(她告白且使用者已明确接受 / 她求婚且使用者已明确答应),在本次回复最末尾另起一行输出(仅确认那一刻输出):
 <好感度事件>{"name":"${prof.name}","confirm":"relation"}</好感度事件> (婚姻被接受时把 confirm 改成 "marriage")。
-2. 当本轮剧情发生跨夜、到了第二天或跳过N天时,在回复最末尾附上:<时间推进>N</时间推进>(N为整数天数,同一天内聊天不要输出)。${outfitGuideText}${visInstruction}`;
+2.【时间上报 · 必须执行】每条回复的最末尾都要输出一次当前剧情时刻,格式严格为:<游戏时间>20XX年XX月XX日 XX时XX分</游戏时间>。由你根据剧情自主决定当前时间与推进幅度:连续对话每轮推进约10~60分钟,跨夜/跳天/时间跳跃按剧情决定;新时刻必须晚于上方【当前时间】,严禁倒流。${outfitGuideText}${visInstruction}`;
 
           systemNotes.push(injectedText);
         }
@@ -2818,8 +2929,8 @@ ${wallLines}
           const riskTxt = (p.pregnancyStatus === '未孕' && p.pregnancyRisk > 0) ? `（当前受孕风险 ${p.pregnancyRisk}%）` : '';
           return `- ${p.name}：${phText}${riskTxt}`;
         }).join('\n');
-        const d0 = list[0][1];
-        topNote = `【⏰ 游戏内时间 · 必读】\n当前日期：${d0.month || 1}月${d0.day || 1}日\n${dateLines}\n若本轮剧情跨夜/跳到第二天/跳过N天，必须在回复最末尾输出 <时间推进>N</时间推进>；同一天内则不要输出。`;
+        const d0 = ensureGameTime(list[0][1]);
+        topNote = `【⏰ 游戏内时间 · 必读】\n当前时间：${d0.year || 2000}年${d0.month || 1}月${d0.day || 1}日 ${nyPad2(d0.hour || 0)}:${nyPad2(d0.minute || 0)}\n${dateLines}\n每条回复最末尾必须输出当前剧情时刻 <游戏时间>20XX年XX月XX日 XX时XX分</游戏时间>（由你判断推进幅度，严禁倒流）。`;
         if (pluginConfig.enableImagePrompt) {
           const visNames = list.slice(0, 3).map(([, p]) => p.name).join('、');
           topNote += `\n【📷 视觉分镜提醒】当剧情发生动作转变、场景切换或情绪起伏时，在对应段落末尾呼叫视觉标签：<Vis:${d0.name}>动作或体位|表情|服装</Vis>（例：<Vis:${d0.name}>接吻|害羞|睡衣</Vis>），一轮回复穿插 1~3 次。${list.length > 1 ? `出场角色：${visNames}。` : ''}`;
@@ -3068,7 +3179,7 @@ ${wallLines}
             <div class="logo-title">
               ${ICONS.logo}
               <span>NAILYA · 奈亚</span>
-              <span class="logo-ver">V6.7.0 极光星云</span>
+              <span class="logo-ver">V6.8.0 极光星云</span>
             </div>
             <div class="header-right">
               <button class="btn-glass primary" id="btn-run-ai-analyze" title="结合图包人名锚点与世界书进行全卡AI识别">
@@ -4291,7 +4402,7 @@ ${wallLines}
       backupCard.className = 'profile-card';
       backupCard.innerHTML = `
         <div class="card-header">
-          <span class="char-name">${ICONS.shield}<span>奈亚 V6.7.0 全量数据备份与多通道导出中心</span></span>
+          <span class="char-name">${ICONS.shield}<span>奈亚 V6.8.0 全量数据备份与多通道导出中心</span></span>
         </div>
         <div style="font-size:11px; color:var(--text-sub); line-height:1.6;">
           已存储：<strong>${cardCount}</strong> 张角色卡档案 ｜ <strong>${aiCacheCount}</strong> 张角色卡 AI 识卡缓存 ｜ <strong>${stCount}</strong> 套酒馆预设。
@@ -4326,7 +4437,7 @@ ${wallLines}
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `nailya_v6.7.0_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
+          a.download = `nailya_v6.8.0_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -4390,7 +4501,7 @@ ${wallLines}
         return userText;
       });
     } catch (e) {
-      console.log(`[Nailya V6.7.0] input handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.8.0] input handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -4401,7 +4512,7 @@ ${wallLines}
         return aiText;
       });
     } catch (e) {
-      console.log(`[Nailya V6.7.0] output handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.8.0] output handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -4444,6 +4555,17 @@ ${wallLines}
             });
         }
 
+        // V6.8.0 可见时间条：把存档里的纯文字时间标记替换为回复右上角的"夏日蓝天电子报时"徽章
+        if (out.includes('<NyTime>')) {
+          out = out.replace(/<NyTime>([^<]+)<\/NyTime>/g, (_, body) => {
+            const parts = body.split('|');
+            if (parts.length < 2) return '';
+            const datePart = parts[0].trim();
+            const timePart = parts[1].trim();
+            return `<span style="float:right;display:inline-block;margin:2px 0 6px 12px;padding:6px 16px 7px;border-radius:16px 4px 16px 4px;background:linear-gradient(135deg,#3d9be9 0%,#7cc4f4 40%,#c9ecff 75%,#eaf8ff 100%);border:1px solid rgba(255,255,255,0.7);box-shadow:0 2px 12px rgba(61,155,233,0.4),inset 0 1px 2px rgba(255,255,255,0.9);text-align:center;font-family:Consolas,'Courier New',monospace;"><span style="display:block;font-size:11px;font-weight:600;color:#0b3a66;letter-spacing:0.5px;">☁️ ${datePart}</span><span style="display:block;font-size:18px;font-weight:700;color:#082c4f;letter-spacing:2px;text-shadow:0 0 8px rgba(255,255,255,0.9);">${timePart}</span></span>`;
+          });
+        }
+
         if (out.includes('<thinking>') || out.includes('<thought>')) {
           if (pluginConfig.foldThinkingBlock === 'strip') {
             out = out.replace(/<(?:thinking|thought)>[\s\S]*?<\/(?:thinking|thought)>/gi, '');
@@ -4456,7 +4578,7 @@ ${wallLines}
         return out;
       });
     } catch (e) {
-      console.log(`[Nailya V6.7.0] display handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.8.0] display handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -4470,10 +4592,15 @@ ${wallLines}
         if (!Array.isArray(messages)) return messages;
         const { systemNotes, assetReport, topNote } = await buildInjectedSystemNotes(messages);
 
+        // V6.8.0：发送前剥离存档里的时间条标记（AI 不需要看见上一轮的徽章原文，省 token 防干扰）
+        const cleanMsgs = messages.map(m => (m && typeof m.content === 'string' && m.content.includes('<NyTime>'))
+          ? Object.assign({}, m, { content: m.content.replace(/\s*<NyTime>[^<]*<\/NyTime>\s*/g, '\n') })
+          : m);
+
         if (pluginConfig.enableStPreset && pluginConfig.activeStPresetId && stPresets[pluginConfig.activeStPresetId] && assetReport) {
           const stMessages = buildMessagesWithSillyTavernPreset(
             stPresets[pluginConfig.activeStPresetId],
-            messages,
+            cleanMsgs,
             assetReport,
             systemNotes
           );
@@ -4483,19 +4610,19 @@ ${wallLines}
           }
         }
 
-        if (!systemNotes.length && !topNote) return messages;
-        const outMessages = messages.slice();
+        if (!systemNotes.length && !topNote) return cleanMsgs;
+        const outMessages = cleanMsgs.slice();
         if (topNote) outMessages.unshift({ role: 'system', content: topNote });
         for (const content of systemNotes) outMessages.push({ role: 'system', content });
         return outMessages;
       });
     } catch (e) {
-      console.log(`[Nailya V6.7.0] beforeRequest replacer 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.8.0] beforeRequest replacer 注册异常: ${e.message}`);
     }
 
     await ensureStoredDataLoaded();
-    console.log('[Nailya V6.7.0] 星云×极光双主题毛玻璃重构版初始化成功');
+    console.log('[Nailya V6.8.0] 星云×极光双主题毛玻璃重构版初始化成功');
   } catch (err) {
-    console.log(`[Nailya V6.7.0] 初始化异常: ${err.message}`);
+    console.log(`[Nailya V6.8.0] 初始化异常: ${err.message}`);
   }
 })();

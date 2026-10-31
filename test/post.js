@@ -104,6 +104,21 @@
     T('告白:关系定位更新', /恋/.test(profOut.relationshipTag || ''), profOut.relationshipTag);
     T('告白:事件标签被清除', !out2.includes('<好感度事件>'));
 
+    // ===== 5b. V6.8.0 可见时间条 =====
+    const profT = favorProfiles['char1']['chat-abc#尤娜'];
+    profT.year = 2003; profT.month = 4; profT.day = 1; profT.hour = 14; profT.minute = 30; profT.timeUnset = false;
+    const outT = await handleAiOutputAndMilestones('他们聊了一会天。');
+    T('时间条:普通回复自动+10分钟(14:40)', profT.hour === 14 && profT.minute === 40, `h=${profT.hour} m=${profT.minute}`);
+    T('时间条:纯文字标记已追加', /<NyTime>2003年4月1日\|14:40<\/NyTime>/.test(outT), outT.slice(-60));
+    const outT2 = await handleAiOutputAndMilestones('过了几个小时。<游戏时间>2003年4月1日 20时05分</游戏时间>');
+    T('时间条:AI上报绝对时刻被采纳', profT.hour === 20 && profT.minute === 5 && profT.year === 2003, `h=${profT.hour} m=${profT.minute}`);
+    T('时间条:游戏时间标签已清除', !outT2.includes('<游戏时间>'));
+    await handleAiOutputAndMilestones('回到早上的场景。<游戏时间>2002年1月1日 08时00分</游戏时间>');
+    T('时间条:时间倒流被拒绝', profT.year === 2003 && profT.hour === 20, `y=${profT.year} h=${profT.hour}`);
+    const dispFnT = (__captured.handlers.find(h => h[0] === 'display') || [])[1];
+    const dispT = await dispFnT('<NyTime>2003年4月1日|20:05</NyTime>');
+    T('时间条:蓝天徽章渲染(右上角+时分)', dispT.includes('float:right') && dispT.includes('20:05') && !dispT.includes('<NyTime>'), dispT.slice(0, 80));
+
     // ===== 6. 注入器 + 顶部时间 =====
     const replacerFn = __captured.replacers[0];
     T('注入器:beforeRequest已注册', typeof replacerFn === 'function');
@@ -115,7 +130,9 @@
     T('注入器:好感墙说明书已注入', joined.includes('好感度墙'));
     T('注入器:视觉指令已注入', joined.includes('<Vis:'));
     T('注入器:里程碑上报指令已注入', joined.includes('好感度事件'));
-    T('注入器:时间推进指令已注入', joined.includes('时间推进'));
+    T('注入器:时间上报指令已注入', joined.includes('游戏时间'));
+    const msgsStrip = await replacerFn([{ role: 'user', content: '你好\n<NyTime>2003年4月1日|14:40</NyTime>' }]);
+    T('时间条:发送前已剥离标记', msgsStrip.every(m => !String(m.content).includes('<NyTime>')));
     T('注入器:原用户消息保留', msgs.some(m => m.role === 'user' && m.content === '你好呀'));
     T('注入器:systemNotes非空(push修复)', msgs.length >= 3, 'total=' + msgs.length);
 
@@ -195,7 +212,7 @@
   }
 
   let pass = 0, fail = 0;
-  console.log('\n========== 奈亚V6.7.0 自动化测试报告 ==========');
+  console.log('\n========== 奈亚V6.8.0 自动化测试报告 ==========');
   for (const [st, name, extra] of __results) {
     if (st === 'PASS') pass++; else fail++;
     console.log(`[${st}] ${name}${extra ? '  → ' + extra : ''}`);
