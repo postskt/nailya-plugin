@@ -153,6 +153,17 @@
   }
 
 
+
+  // ===== 11. 保底出图（V6.5.1）=====
+  try {
+    const dispFn11 = __captured.handlers.find(h => h[0] === 'display')[1];
+    // 标签里的动作/服装在卡片图片标签中完全无匹配——旧逻辑全部负分返回空（标签被吞），新逻辑必须保底出图
+    const dispC = await dispFn11('测试正文\n<Vis:尤娜>开飞船|沉思|太空服</Vis>\n结束');
+    T('保底出图:标签无任何匹配时仍选图', /yuna_/.test(dispC) && !dispC.includes('<Vis:'), dispC.slice(-45));
+  } catch (e) {
+    __results.push(['FAIL', '保底出图测试异常', String(e.message).slice(0, 80)]);
+  }
+
   let pass = 0, fail = 0;
   console.log('\n========== 奈亚V6.0.1 自动化测试报告 ==========');
   for (const [st, name, extra] of __results) {
