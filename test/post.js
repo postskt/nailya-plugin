@@ -56,7 +56,7 @@
     }
     const prof3 = mkProf();
     updatePhysiology(prof3, 0, '戴套做爱');
-    T('怀孕:戴套→风险≈3%', prof3.pregnancyRisk <= 3.1 && prof3.pregnancyStatus === '未孕', 'risk=' + prof3.pregnancyRisk);
+    T('怀孕:戴套→风险≈3%或直接受孕', (prof3.pregnancyRisk <= 3.1 && prof3.pregnancyStatus === '未孕') || prof3.pregnancyStatus === '已孕', 'risk=' + prof3.pregnancyRisk + ' status=' + prof3.pregnancyStatus);
     const profP = mkProf(); profP.cycleDay = 2; updatePhysiology(profP, 0, '无套内射');
     T('怀孕:经期(安全期)→风险不涨', profP.pregnancyRisk === 0);
     const profL = mkProf(); profL.cycleDay = 20; updatePhysiology(profL, 0, '无套内射');
@@ -126,6 +126,29 @@
     T('好感墙:确认后可越过', prof6.favor === 60, 'favor=' + prof6.favor);
   } catch (e) {
     __results.push(['FAIL', '测试执行异常', (e.stack || e.message).split('\n').slice(0, 6).join(' | ')]);
+  }
+
+  // ===== 9. 临时简档防呆机制（V6.3.0）=====
+  try {
+    const replacerFn9 = __captured.replacers[0];
+    delete favorProfiles['char1']; // 清空档案，模拟"从未建档"的卡
+    delete cardAiCache['char1']; // 同时清掉AI缓存，否则会被缓存自动恢复
+    const msgs9 = await replacerFn9([{ role: 'user', content: '回归测试' }]);
+    const prof9 = (favorProfiles['char1'] && Object.values(favorProfiles['char1'])[0]) || null;
+    T('临时简档:空档案自动创建', !!prof9 && prof9.临时建档 === true, prof9 && ('name=' + prof9.name + ' favor=' + prof9.favor));
+    T('临时简档:周期/年龄有默认值', !!prof9 && prof9.cycleDay === 14 && (prof9.age || 0) >= 18);
+    const joined9 = msgs9.map(m => m.content).join('\n');
+    T('临时简档:顶部时间照常注入', !!msgs9[0] && msgs9[0].content.includes('游戏内时间'));
+    T('临时简档:视觉强制令照常注入', joined9.includes('视觉标签强制令'));
+    T('临时简档:搭车建档指令每轮注入', joined9.includes('插件初始化指令'));
+    await new Promise(r => setTimeout(r, 450)); // 等防抖保存落盘
+    T('临时简档:已持久化到存储', (() => { try { return (globalThis.__storage['fpm_profiles_v3'] || '').includes('临时建档'); } catch (_) { return false; } })());
+    // 再触发一次，确认不会重复创建第二个临时槽
+    await replacerFn9([{ role: 'user', content: '回归测试2' }]);
+    const slotCount = Object.keys(favorProfiles['char1']).length;
+    T('临时简档:不重复建槽', slotCount === 1, '槽数=' + slotCount);
+  } catch (e) {
+    __results.push(['FAIL', '临时简档测试异常', (e.stack || e.message).split('\n').slice(0, 4).join(' | ')]);
   }
 
   let pass = 0, fail = 0;

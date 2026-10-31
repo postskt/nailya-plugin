@@ -1,7 +1,7 @@
 //@name favor_physio_manager
-//@display-name 奈亚V6.2.1·星云极光
+//@display-name 奈亚V6.3.0·星云极光
 //@api 3.0
-//@version 6.2.1
+//@version 6.3.0
 //@update-url https://raw.githubusercontent.com/postskt/nailya-plugin/main/Nailya.plugin.js
 
 (async () => {
@@ -83,7 +83,7 @@
       ...['action', 'chat', 'hamburger'].map(async (loc) => {
         try {
           const btnRes = await registerButtonSafe({
-            name: '奈亚V6.2.1',
+            name: '奈亚V6.3.0',
             icon: PLUGIN_ICON,
             iconType: PLUGIN_ICON_TYPE,
             location: loc,
@@ -91,13 +91,13 @@
           }, onPluginButtonClick);
           if (btnRes && btnRes.id) registeredUIParts.push(btnRes.id);
         } catch (btnErr) {
-          console.log(`[Nailya V6.2.1] 注册 ${loc} 按钮异常: ${btnErr.message}`);
+          console.log(`[Nailya V6.3.0] 注册 ${loc} 按钮异常: ${btnErr.message}`);
         }
       }),
       (async () => {
         try {
           const setRes = await registerSettingSafe(
-            '奈亚V6.2.1 星云极光·好感·生理·穿搭·酒馆预设',
+            '奈亚V6.3.0 星云极光·好感·生理·穿搭·酒馆预设',
             onPluginButtonClick,
             PLUGIN_ICON,
             PLUGIN_ICON_TYPE,
@@ -105,7 +105,7 @@
           );
           if (setRes && setRes.id) registeredUIParts.push(setRes.id);
         } catch (setErr) {
-          console.log(`[Nailya V6.2.1] 注册设置异常: ${setErr.message}`);
+          console.log(`[Nailya V6.3.0] 注册设置异常: ${setErr.message}`);
         }
       })()
     ]);
@@ -218,7 +218,7 @@
         }
         dataLoaded = true;
       } catch (e) {
-        console.log(`[Nailya V6.2.1] 读取数据异常: ${e.message}`);
+        console.log(`[Nailya V6.3.0] 读取数据异常: ${e.message}`);
       }
     }
 
@@ -249,7 +249,7 @@
           dirtyStoreKeys.clear();
           if (tasks.length > 0) await Promise.all(tasks);
         } catch (e) {
-          console.log(`[Nailya V6.2.1] 保存数据失败: ${e.message}`);
+          console.log(`[Nailya V6.3.0] 保存数据失败: ${e.message}`);
         }
       };
 
@@ -299,7 +299,7 @@
     function exportFullBackupJson() {
       const payload = {
         plugin: 'favor_physio_manager_nailya',
-        version: '6.2.1',
+        version: '6.3.0',
         exportedAt: new Date().toISOString(),
         favorProfiles,
         cardAiCache,
@@ -1410,6 +1410,7 @@ ${coreSchemaInstruction}
         for (const sk of existingSlots) {
           if (chatNumOf(sk) === String(ctx.chatIndex)) {
             const oldProf = favorProfiles[ctx.key][sk];
+            if (oldProf && oldProf.临时建档) { delete favorProfiles[ctx.key][sk]; continue; } // AI 正式建档时清掉临时简档
             const matchedNew = chars.find(c =>
               c.origName === oldProf?.name ||
               c.cnName === oldProf?.name ||
@@ -1574,7 +1575,7 @@ ${coreSchemaInstruction}
           alert('🤖 AI 分析失败：API请求超时(15秒)，请检查网络或更换节点');
           return false;
         }
-        console.log(`[Nailya V6.2.1] AI 分析异常: ${err.message}`);
+        console.log(`[Nailya V6.3.0] AI 分析异常: ${err.message}`);
         alert(`🤖 AI 分析失败：${err.message}\n\n当前请求地址：${apiUrl}\n当前模型名：${apiModel}`);
         return false;
       } finally {
@@ -2742,6 +2743,26 @@ ${matchedSlices.join('\n\n')}`;
         list = profilesOfChat(ctx.key, ctx);
       }
 
+      // 无档案时自动创建"临时简档"：让时间/视觉/好感功能立即生效，AI 分析成功后自动覆盖升级（防呆：不再因建档失败而全功能瘫痪）
+      if (list.length === 0 && assetReport && assetReport.charObj) {
+        const tempName = String(assetReport.charObj.name || '').trim() || '女主';
+        if (!favorProfiles[ctx.key]) favorProfiles[ctx.key] = {};
+        const tempSlot = slotOf(ctx.chatIndex, tempName);
+        favorProfiles[ctx.key][tempSlot] = {
+          name: tempName, origName: tempName, relationshipTag: '临时建档(待AI补全)', favor: 20,
+          month: 1, day: 1, age: Math.max(18, Number(assetReport.charObj.age) || 18), cycleDay: 14,
+          pregnancyStatus: '未孕', gestationDays: null, postpartumDays: null, pregnancyRisk: 0,
+          physioNote: '', relationConfirmed: false, marriageConfirmed: false,
+          assetPrefix: (assetReport.knownCharTokens && assetReport.knownCharTokens[0]) || '',
+          lockedOutfit: '', enableOutfit: true, wardrobeLocked: false,
+          stature: '匀称曼妙', figure: '', personality: '',
+          wardrobe: { styleLabel: '默认穿搭' },
+          临时建档: true
+        };
+        await saveStoredData(false, ['profiles']);
+        list = profilesOfChat(ctx.key, ctx);
+      }
+
       const systemNotes = [];
 
       if (list.length > 0) {
@@ -2809,6 +2830,11 @@ ${wallLines}
           runtimeCache.pendingMainModelExtract.add(ctx.key);
           systemNotes.push(buildAiAnalysisPrompt(assetReport, true));
         }
+      }
+
+      // 搭车建档指令：档案仍是临时简档时每轮注入，直到 AI 正式建档覆盖（原来只发一次，失败就永久沉默）
+      if (list.length > 0 && pluginConfig.autoMainModelAnalyze && list.some(([, p]) => p.临时建档)) {
+        systemNotes.push(buildAiAnalysisPrompt(assetReport, true));
       }
 
       // 对话最顶部的时间注入：让 AI 每次生成前第一眼就看到游戏内日期与生理状态
@@ -3072,7 +3098,7 @@ ${wallLines}
             <div class="logo-title">
               ${ICONS.logo}
               <span>NAILYA · 奈亚</span>
-              <span class="logo-ver">V6.2.1 极光星云</span>
+              <span class="logo-ver">V6.3.0 极光星云</span>
             </div>
             <div class="header-right">
               <button class="btn-glass primary" id="btn-run-ai-analyze" title="结合图包人名锚点与世界书进行全卡AI识别">
@@ -4295,7 +4321,7 @@ ${wallLines}
       backupCard.className = 'profile-card';
       backupCard.innerHTML = `
         <div class="card-header">
-          <span class="char-name">${ICONS.shield}<span>奈亚 V6.2.1 全量数据备份与多通道导出中心</span></span>
+          <span class="char-name">${ICONS.shield}<span>奈亚 V6.3.0 全量数据备份与多通道导出中心</span></span>
         </div>
         <div style="font-size:11px; color:var(--text-sub); line-height:1.6;">
           已存储：<strong>${cardCount}</strong> 张角色卡档案 ｜ <strong>${aiCacheCount}</strong> 张角色卡 AI 识卡缓存 ｜ <strong>${stCount}</strong> 套酒馆预设。
@@ -4330,7 +4356,7 @@ ${wallLines}
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `nailya_v6.2.1_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
+          a.download = `nailya_v6.3.0_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -4394,7 +4420,7 @@ ${wallLines}
         return userText;
       });
     } catch (e) {
-      console.log(`[Nailya V6.2.1] input handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.3.0] input handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -4405,7 +4431,7 @@ ${wallLines}
         return aiText;
       });
     } catch (e) {
-      console.log(`[Nailya V6.2.1] output handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.3.0] output handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -4459,7 +4485,7 @@ ${wallLines}
         return out;
       });
     } catch (e) {
-      console.log(`[Nailya V6.2.1] display handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.3.0] display handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -4493,12 +4519,12 @@ ${wallLines}
         return outMessages;
       });
     } catch (e) {
-      console.log(`[Nailya V6.2.1] beforeRequest replacer 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.3.0] beforeRequest replacer 注册异常: ${e.message}`);
     }
 
     await ensureStoredDataLoaded();
-    console.log('[Nailya V6.2.1] 星云×极光双主题毛玻璃重构版初始化成功');
+    console.log('[Nailya V6.3.0] 星云×极光双主题毛玻璃重构版初始化成功');
   } catch (err) {
-    console.log(`[Nailya V6.2.1] 初始化异常: ${err.message}`);
+    console.log(`[Nailya V6.3.0] 初始化异常: ${err.message}`);
   }
 })();
