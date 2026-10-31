@@ -164,6 +164,19 @@
     __results.push(['FAIL', '保底出图测试异常', String(e.message).slice(0, 80)]);
   }
 
+
+  // ===== 12. 标签菜单（V6.6.0）=====
+  try {
+    const replacerFn12 = __captured.replacers[0];
+    const msgs12 = await replacerFn12([{ role: 'user', content: '菜单测试' }]);
+    const joined12 = msgs12.map(m => m.content).join('|');
+    T('标签菜单:已注入到说明书', joined12.includes('可用标签菜单'), joined12.includes('可用标签菜单'));
+    T('标签菜单:含图包实际服装词', joined12.includes('泳衣') || joined12.includes('睡衣'), '');
+    T('标签菜单:含图包实际表情词', joined12.includes('害羞') || joined12.includes('开心'), '');
+  } catch (e) {
+    __results.push(['FAIL', '标签菜单测试异常', String(e.message).slice(0, 80)]);
+  }
+
   let pass = 0, fail = 0;
   console.log('\n========== 奈亚V6.0.1 自动化测试报告 ==========');
   for (const [st, name, extra] of __results) {
