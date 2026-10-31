@@ -1,7 +1,7 @@
 //@name favor_physio_manager
-//@display-name 奈亚V6.3.1·星云极光
+//@display-name 奈亚V6.4.0·星云极光
 //@api 3.0
-//@version 6.3.1
+//@version 6.4.0
 //@update-url https://raw.githubusercontent.com/postskt/nailya-plugin/main/Nailya.plugin.js
 
 (async () => {
@@ -83,7 +83,7 @@
       ...['action', 'chat', 'hamburger'].map(async (loc) => {
         try {
           const btnRes = await registerButtonSafe({
-            name: '奈亚V6.3.1',
+            name: '奈亚V6.4.0',
             icon: PLUGIN_ICON,
             iconType: PLUGIN_ICON_TYPE,
             location: loc,
@@ -91,13 +91,13 @@
           }, onPluginButtonClick);
           if (btnRes && btnRes.id) registeredUIParts.push(btnRes.id);
         } catch (btnErr) {
-          console.log(`[Nailya V6.3.1] 注册 ${loc} 按钮异常: ${btnErr.message}`);
+          console.log(`[Nailya V6.4.0] 注册 ${loc} 按钮异常: ${btnErr.message}`);
         }
       }),
       (async () => {
         try {
           const setRes = await registerSettingSafe(
-            '奈亚V6.3.1 星云极光·好感·生理·穿搭·酒馆预设',
+            '奈亚V6.4.0 星云极光·好感·生理·穿搭·酒馆预设',
             onPluginButtonClick,
             PLUGIN_ICON,
             PLUGIN_ICON_TYPE,
@@ -105,7 +105,7 @@
           );
           if (setRes && setRes.id) registeredUIParts.push(setRes.id);
         } catch (setErr) {
-          console.log(`[Nailya V6.3.1] 注册设置异常: ${setErr.message}`);
+          console.log(`[Nailya V6.4.0] 注册设置异常: ${setErr.message}`);
         }
       })()
     ]);
@@ -218,7 +218,7 @@
         }
         dataLoaded = true;
       } catch (e) {
-        console.log(`[Nailya V6.3.1] 读取数据异常: ${e.message}`);
+        console.log(`[Nailya V6.4.0] 读取数据异常: ${e.message}`);
       }
     }
 
@@ -249,7 +249,7 @@
           dirtyStoreKeys.clear();
           if (tasks.length > 0) await Promise.all(tasks);
         } catch (e) {
-          console.log(`[Nailya V6.3.1] 保存数据失败: ${e.message}`);
+          console.log(`[Nailya V6.4.0] 保存数据失败: ${e.message}`);
         }
       };
 
@@ -299,7 +299,7 @@
     function exportFullBackupJson() {
       const payload = {
         plugin: 'favor_physio_manager_nailya',
-        version: '6.3.1',
+        version: '6.4.0',
         exportedAt: new Date().toISOString(),
         favorProfiles,
         cardAiCache,
@@ -1575,7 +1575,7 @@ ${coreSchemaInstruction}
           alert('🤖 AI 分析失败：API请求超时(15秒)，请检查网络或更换节点');
           return false;
         }
-        console.log(`[Nailya V6.3.1] AI 分析异常: ${err.message}`);
+        console.log(`[Nailya V6.4.0] AI 分析异常: ${err.message}`);
         alert(`🤖 AI 分析失败：${err.message}\n\n当前请求地址：${apiUrl}\n当前模型名：${apiModel}`);
         return false;
       } finally {
@@ -2705,34 +2705,9 @@ ${matchedSlices.join('\n\n')}`;
         cleanedText = cleanedText.replace(/\s*<好感度事件>[\s\S]*?<\/好感度事件>\s*/gi, '');
       }
 
-      const hadVisTag = cleanedText.includes('<Vis:');
-      if (hadVisTag || pluginConfig.enableImagePrompt) {
-        try {
-          await ensureStoredDataLoaded();
-          const ctx = await getFastContext(false);
-          if (ctx && ctx.key) {
-            const assetReport = await getCachedCardReport(ctx, false);
-            const cachedAiData = cardAiCache[ctx.key] || {};
-            const imgIndex = cachedAiData.imageCnIndex || {};
-
-            if (hadVisTag) {
-              const visRegex = /<Vis:([^>]+)>([^|]*)\|([^|]*)\|([^<]*)<\/Vis>/gi;
-              cleanedText = cleanedText.replace(visRegex, (match, charName, action, expression, outfit) => {
-                const safeAction = (action || '').trim();
-                const safeExpression = (expression || '').trim();
-                const safeOutfit = (outfit || '').trim();
-                const bestAsset = findBestImageForVisTag(ctx.key, charName.trim(), safeAction, safeExpression, safeOutfit, assetReport, imgIndex, favorProfiles, ctx);
-                if (!bestAsset) return '';
-                return buildImageCodeForAsset(assetReport, bestAsset);
-              });
-              
-              cleanedText = cleanedText.replace(/<img\s+cmd=["'][^"']+["']\s*\/?>/gi, '');
-            } else {
-              cleanedText = await appendAutoImageFromContext(cleanedText, ctx, assetReport, imgIndex);
-            }
-          }
-        } catch (e) {}
-      }
+      // V6.4.0：Vis 标签改回 V5.5.7 的显示层替换方案——输出层不再碰 Vis 标签，
+      // 存档里保留 <Vis:> 原文（这就是"以前点开全文能看到标签"的原因），图片在渲染时替换。
+      cleanedText = cleanedText.replace(/<img\s+cmd=["'][^"']+["']\s*\/?>/gi, '');
 
       return cleanedText;
     }
@@ -2802,26 +2777,10 @@ ${matchedSlices.join('\n\n')}`;
           
           let visInstruction = '';
           if (pluginConfig.enableImagePrompt) {
-            visInstruction = `\n<视觉交互防火墙>\n当剧情有动作或情绪变化时，必须在正文呼叫视觉标签：<Vis:${prof.name}>动作|表情|服装</Vis>。\n⚠️ 绝对铁律：\n1. 【格式唯一】：这是唯一的发图方式！彻底遗忘并忽略角色卡自带的 <img cmd="..."> 等发图指令。\n2. 【内容防空】：<Vis> 标签严禁进入 <thinking> 内部！三个槽位绝不能留空，无明显动作请写“站立”或“日常”，严禁文学修辞。\n</视觉交互防火墙>`;
+            visInstruction = `\n【视觉分镜指令】：你无需直接输出图片代码。当剧情发生明显的动作转变、场景切换或情绪起伏时，请在对应段落的末尾或中间（需独立换行），主动呼叫视觉标签。格式严格为：<Vis:中文角色名>动作|表情|服装或裸露度</Vis>（例：<Vis:${prof.name}>接吻|害羞|睡衣</Vis> 或 <Vis:${prof.name}>洗澡|动情|全裸</Vis>）。一轮回复中允许在不同段落穿插 1~3 次以配合长文演出。注意：除非剧情明确穿脱，否则请保持服装标签连贯！`;
           }
 
-          const narrativeEngine = `\n<文学巨匠与角色灵魂引擎>
-【1. 灵魂辩证法思维链 (<thinking>前置推演)】
-正文前使用 <thinking>...</thinking> 构思（拒绝机械填表）：
-- 心理与潜台词：角色此刻内心哪两种情感在拉扯？她企图用什么借口掩饰？
-- 环境映射：抓取当前环境的一个微小物理细节（光影切割、冷空气、织物触感、白噪音），用它来隐喻和烘托此刻的心理失衡。
-
-【2. 角色主观滤镜与环境交融】
-- 禁止干瘪的客观景物描写！所有的温度、气味和光线，必须100%经过该角色的“主观性格滤镜”过滤。让周遭的环境直接刺激她的感官，与理智发生化学反应。
-
-【3. 肢体的背叛 (Show, Don't Tell)】
-- 彻底禁用“她感到害羞/开心”等廉价心理总结词汇。
-- 重点刻画微表情与微动作：如睫毛的轻颤频率、瞳孔的收缩、不自觉咬唇、呼吸节律的变乱、指节泛白或脚趾在鞋内的蜷缩，让下意识的肢体细节出卖她的口是心非。
-
-【4. 真实的互动推拉与悬念】
-- 说话语气、口癖必须严丝合缝地契合原生设定。不要流畅地说完长句，加入喉咙发紧的停顿或尾音颤抖。
-- 每一轮回复末尾，用一个意料之外的动作或反问制造场景转折，把下一步的决定权死死留给玩家！绝对禁止替玩家做出任何反应！
-</文学巨匠与角色灵魂引擎>`;
+          // V6.4.0：移除 V6.1.0 引入的「文学巨匠引擎」——它与视觉指令抢格式遵从度，且与"Vis 严禁进 thinking"自相矛盾
 
           const injectedText = `[System Note (${prof.name}${prof.origName && prof.origName !== prof.name ? ` / ${prof.origName}` : ''}): Current Time is Month ${prof.month}, Day ${prof.day}. Character Age: ${prof.age || 18}. Relationship with User: ${prof.relationshipTag || stage.title}. Favorability: ${prof.favor}/200 (Stage: ${stage.title}). Physiological State: ${physioText}. Pregnancy Risk: ${prof.pregnancyRisk}%. Always refer to this character by her Chinese name "${prof.name}" in Chinese narrative.]
 【好感度档位行为基线 — 不可降级】
@@ -2833,7 +2792,7 @@ ${wallLines}
 【里程碑与时间流逝自动上报 — 必须执行】
 1. 当上面某道墙被剧情真正跨过时(她告白且使用者已明确接受 / 她求婚且使用者已明确答应),在本次回复最末尾另起一行输出(仅确认那一刻输出):
 <好感度事件>{"name":"${prof.name}","confirm":"relation"}</好感度事件> (婚姻被接受时把 confirm 改成 "marriage")。
-2. 当本轮剧情发生跨夜、到了第二天或跳过N天时,在回复最末尾附上:<时间推进>N</时间推进>(N为整数天数,同一天内聊天不要输出)。${outfitGuideText}${visInstruction}${narrativeEngine}`;
+2. 当本轮剧情发生跨夜、到了第二天或跳过N天时,在回复最末尾附上:<时间推进>N</时间推进>(N为整数天数,同一天内聊天不要输出)。${outfitGuideText}${visInstruction}`;
 
           systemNotes.push(injectedText);
         }
@@ -2864,7 +2823,7 @@ ${wallLines}
         topNote = `【⏰ 游戏内时间 · 必读】\n当前日期：${d0.month || 1}月${d0.day || 1}日\n${dateLines}\n若本轮剧情跨夜/跳到第二天/跳过N天，必须在回复最末尾输出 <时间推进>N</时间推进>；同一天内则不要输出。`;
         if (pluginConfig.enableImagePrompt) {
           const visNames = list.slice(0, 3).map(([, p]) => p.name).join('、');
-          topNote += `\n【📷 视觉标签强制令 · 最高优先级】本轮回复必须按剧情输出视觉标签，这是唯一合法的发图方式：\n格式：<Vis:${d0.name}>动作|表情|服装</Vis>（例：<Vis:${d0.name}>拥抱|害羞|常服</Vis>）。\n三个槽位必须用中文填写、不得留空（无明显动作写"站立"、服装写"常服"）。${list.length > 1 ? `出场角色：${visNames}——每个出场角色各输出一条。` : ''}`;
+          topNote += `\n【📷 视觉分镜提醒】当剧情发生动作转变、场景切换或情绪起伏时，在对应段落末尾呼叫视觉标签：<Vis:${d0.name}>动作|表情|服装</Vis>（例：<Vis:${d0.name}>接吻|害羞|睡衣</Vis>），一轮回复穿插 1~3 次。${list.length > 1 ? `出场角色：${visNames}。` : ''}`;
         }
       }
 
@@ -3110,7 +3069,7 @@ ${wallLines}
             <div class="logo-title">
               ${ICONS.logo}
               <span>NAILYA · 奈亚</span>
-              <span class="logo-ver">V6.3.1 极光星云</span>
+              <span class="logo-ver">V6.4.0 极光星云</span>
             </div>
             <div class="header-right">
               <button class="btn-glass primary" id="btn-run-ai-analyze" title="结合图包人名锚点与世界书进行全卡AI识别">
@@ -4333,7 +4292,7 @@ ${wallLines}
       backupCard.className = 'profile-card';
       backupCard.innerHTML = `
         <div class="card-header">
-          <span class="char-name">${ICONS.shield}<span>奈亚 V6.3.1 全量数据备份与多通道导出中心</span></span>
+          <span class="char-name">${ICONS.shield}<span>奈亚 V6.4.0 全量数据备份与多通道导出中心</span></span>
         </div>
         <div style="font-size:11px; color:var(--text-sub); line-height:1.6;">
           已存储：<strong>${cardCount}</strong> 张角色卡档案 ｜ <strong>${aiCacheCount}</strong> 张角色卡 AI 识卡缓存 ｜ <strong>${stCount}</strong> 套酒馆预设。
@@ -4368,7 +4327,7 @@ ${wallLines}
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `nailya_v6.3.1_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
+          a.download = `nailya_v6.4.0_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -4432,7 +4391,7 @@ ${wallLines}
         return userText;
       });
     } catch (e) {
-      console.log(`[Nailya V6.3.1] input handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.4.0] input handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -4443,7 +4402,7 @@ ${wallLines}
         return aiText;
       });
     } catch (e) {
-      console.log(`[Nailya V6.3.1] output handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.4.0] output handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -4497,7 +4456,7 @@ ${wallLines}
         return out;
       });
     } catch (e) {
-      console.log(`[Nailya V6.3.1] display handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.4.0] display handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -4531,12 +4490,12 @@ ${wallLines}
         return outMessages;
       });
     } catch (e) {
-      console.log(`[Nailya V6.3.1] beforeRequest replacer 注册异常: ${e.message}`);
+      console.log(`[Nailya V6.4.0] beforeRequest replacer 注册异常: ${e.message}`);
     }
 
     await ensureStoredDataLoaded();
-    console.log('[Nailya V6.3.1] 星云×极光双主题毛玻璃重构版初始化成功');
+    console.log('[Nailya V6.4.0] 星云×极光双主题毛玻璃重构版初始化成功');
   } catch (err) {
-    console.log(`[Nailya V6.3.1] 初始化异常: ${err.message}`);
+    console.log(`[Nailya V6.4.0] 初始化异常: ${err.message}`);
   }
 })();

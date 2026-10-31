@@ -95,7 +95,7 @@
     const msgs = await replacerFn([{ role: 'user', content: '你好呀' }]);
     T('注入器:顶部时间消息存在', !!msgs[0] && msgs[0].content.includes('游戏内时间'), msgs[0] && msgs[0].content.slice(0, 30));
     T('注入器:顶部时间含周期/孕期状态', msgs[0].content.includes('周期 Day') || msgs[0].content.includes('孕期'));
-    T('注入器:顶部含视觉强制令', msgs[0].content.includes('视觉标签强制令') && msgs[0].content.includes('<Vis:尤娜>'));
+    T('注入器:顶部含视觉分镜指令', msgs[0].content.includes('视觉分镜提醒') && msgs[0].content.includes('<Vis:尤娜>'));
     const joined = msgs.map(m => m.content).join('\n');
     T('注入器:好感墙说明书已注入', joined.includes('好感度墙'));
     T('注入器:视觉指令已注入', joined.includes('<Vis:'));
@@ -139,7 +139,7 @@
     T('临时简档:周期/年龄有默认值', !!prof9 && prof9.cycleDay === 14 && (prof9.age || 0) >= 18);
     const joined9 = msgs9.map(m => m.content).join('\n');
     T('临时简档:顶部时间照常注入', !!msgs9[0] && msgs9[0].content.includes('游戏内时间'));
-    T('临时简档:视觉强制令照常注入', joined9.includes('视觉标签强制令'));
+    T('临时简档:视觉强制令照常注入', joined9.includes('视觉分镜指令'));
     T('临时简档:搭车建档指令每轮注入', joined9.includes('插件初始化指令'));
     await new Promise(r => setTimeout(r, 450)); // 等防抖保存落盘
     T('临时简档:已持久化到存储', (() => { try { return (globalThis.__storage['fpm_profiles_v3'] || '').includes('临时建档'); } catch (_) { return false; } })());
