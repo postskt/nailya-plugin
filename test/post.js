@@ -340,7 +340,7 @@
   }
 
   let pass = 0, fail = 0;
-  console.log('\n========== 奈亚V7.1.0 自动化测试报告 ==========');
+  console.log('\n========== 奈亚V7.1.1 自动化测试报告 ==========');
   for (const [st, name, extra] of __results) {
     if (st === 'PASS') pass++; else fail++;
     console.log(`[${st}] ${name}${extra ? '  → ' + extra : ''}`);

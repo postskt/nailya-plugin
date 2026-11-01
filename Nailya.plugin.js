@@ -1,7 +1,7 @@
 //@name favor_physio_manager
-//@display-name 奈亚V7.1.0·星云极光
+//@display-name 奈亚V7.1.1·星云极光
 //@api 3.0
-//@version 7.1.0
+//@version 7.1.1
 //@update-url https://raw.githubusercontent.com/postskt/nailya-plugin/main/Nailya.plugin.js
 
 (async () => {
@@ -83,7 +83,7 @@
       ...['action', 'chat', 'hamburger'].map(async (loc) => {
         try {
           const btnRes = await registerButtonSafe({
-            name: '奈亚V7.1.0',
+            name: '奈亚V7.1.1',
             icon: PLUGIN_ICON,
             iconType: PLUGIN_ICON_TYPE,
             location: loc,
@@ -91,13 +91,13 @@
           }, onPluginButtonClick);
           if (btnRes && btnRes.id) registeredUIParts.push(btnRes.id);
         } catch (btnErr) {
-          console.log(`[Nailya V7.1.0] 注册 ${loc} 按钮异常: ${btnErr.message}`);
+          console.log(`[Nailya V7.1.1] 注册 ${loc} 按钮异常: ${btnErr.message}`);
         }
       }),
       (async () => {
         try {
           const setRes = await registerSettingSafe(
-            '奈亚V7.1.0 星云极光·好感·生理·穿搭·酒馆预设',
+            '奈亚V7.1.1 星云极光·好感·生理·穿搭·酒馆预设',
             onPluginButtonClick,
             PLUGIN_ICON,
             PLUGIN_ICON_TYPE,
@@ -105,7 +105,7 @@
           );
           if (setRes && setRes.id) registeredUIParts.push(setRes.id);
         } catch (setErr) {
-          console.log(`[Nailya V7.1.0] 注册设置异常: ${setErr.message}`);
+          console.log(`[Nailya V7.1.1] 注册设置异常: ${setErr.message}`);
         }
       })()
     ]);
@@ -123,7 +123,7 @@
     let cardAiCache = {};       // 按角色卡 key 永久缓存 AI 解析结果(角色设定 + 图片中文语义索引)
     let stPresets = {};         // 存储导入的酒馆 (SillyTavern) 预设集合: presetId -> presetObj
     let stVars = {};            // 存储酒馆宏变量 {{setvar::k::v}} / {{getvar::k}}
-    let npcProfiles = {};       // V7.1.0 NPC 简档：charKey -> {npc名 -> {身份/性格一句话/称呼/日程一句话/雷点/情绪倾向/重要度/favor/memories}}
+    let npcProfiles = {};       // V7.1.1 NPC 简档：charKey -> {npc名 -> {身份/性格一句话/称呼/日程一句话/雷点/情绪倾向/重要度/favor/memories}}
 
     let pluginConfig = {
       // 独立 AI 接口设置
@@ -226,7 +226,7 @@
         }
         dataLoaded = true;
       } catch (e) {
-        console.log(`[Nailya V7.1.0] 读取数据异常: ${e.message}`);
+        console.log(`[Nailya V7.1.1] 读取数据异常: ${e.message}`);
       }
     }
 
@@ -260,7 +260,7 @@
           dirtyStoreKeys.clear();
           if (tasks.length > 0) await Promise.all(tasks);
         } catch (e) {
-          console.log(`[Nailya V7.1.0] 保存数据失败: ${e.message}`);
+          console.log(`[Nailya V7.1.1] 保存数据失败: ${e.message}`);
         }
       };
 
@@ -310,7 +310,7 @@
     function exportFullBackupJson() {
       const payload = {
         plugin: 'favor_physio_manager_nailya',
-        version: '7.1.0',
+        version: '7.1.1',
         exportedAt: new Date().toISOString(),
         favorProfiles,
         cardAiCache,
@@ -523,7 +523,7 @@
     // 优化4：并发获取当前角色与对话索引 + 400ms 微缓存，避免单轮对话内多次钩子重复跨窗口通信
     async function getFastContext(needFullChar = false) {
       const now = Date.now();
-      if (!needFullChar && runtimeCache.lastCharKey && (now - runtimeCache.lastCtxTime < 400)) {
+      if (!needFullChar && runtimeCache.lastCharKey && (now - runtimeCache.lastCtxTime < 1500)) { // V7.1.1：400→1500ms，省去每轮重复的上下文查询
         return {
           key: runtimeCache.lastCharKey,
           charName: runtimeCache.lastCharName,
@@ -793,7 +793,7 @@
       'climax', 'bondage'
     ]);
 
-    // V7.1.0 特征词中英对照：图包里的生物/参与者/形态标记 → 标签里的中文写法。
+    // V7.1.1 特征词中英对照：图包里的生物/参与者/形态标记 → 标签里的中文写法。
     // 命中特征词的图 +600 优先；带特征词却没被剧情提到的图 -700 让位（蜘蛛图绝不错进普通做爱）
     const FEATURE_CN_DICT = {
       fly: ['飞虫', '苍蝇', '虫'], insect: ['昆虫', '虫'], bug: ['虫'],
@@ -1196,7 +1196,7 @@
 
       const knownCharTokens = Object.keys(byCharToken);
       const allUniqueImageTokens = Array.from(uniqueTokenCounter.entries()).sort((a, b) => b[1] - a[1]).slice(0, 180).map(e => e[0]);
-      // V7.1.0 特征词：提取"词典不认识、非纯数字、且只出现在部分图里"的词（生物/NTR/年龄标记等）。
+      // V7.1.1 特征词：提取"词典不认识、非纯数字、且只出现在部分图里"的词（生物/NTR/年龄标记等）。
       // 这类词旧解析器当垃圾扔掉，导致蜘蛛图混进普通做爱池随机误出——现在登记成特征词，选图时奖惩分明
       for (const tk of knownCharTokens) {
         const g = byCharToken[tk];
@@ -1688,7 +1688,7 @@ ${coreSchemaInstruction}
           alert(`🤖 AI 分析失败：${err.message}，多角色大卡可在「⚙️ AI接口」里调大超时秒数`);
           return false;
         }
-        console.log(`[Nailya V7.1.0] AI 分析异常: ${err.message}`);
+        console.log(`[Nailya V7.1.1] AI 分析异常: ${err.message}`);
         alert(`🤖 AI 分析失败：${err.message}\n\n当前请求地址：${apiUrl}\n当前模型名：${apiModel}`);
         return false;
       } finally {
@@ -2120,199 +2120,13 @@ ${matchedSlices.join('\n\n')}`;
     // ------------------------------------------------------------------------
     // 6. 极速中文对话语义匹配器 (预编译正则 + 索引缓存) 与 O(1) 智能分层选图引擎
     // ------------------------------------------------------------------------
-    function hashStringSeed(str) {
-      let h = 2166136261 >>> 0;
-      const s = String(str || '');
-      for (let i = 0; i < s.length; i++) {
-        h ^= s.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-      }
-      return h >>> 0;
-    }
-
+    
     // 预编译并缓存角色的中文图片索引，避免每次发消息重复切分字符串
-    function getCompiledCnIndex(cardKey, imageCnIndex) {
-      if (!imageCnIndex || typeof imageCnIndex !== 'object') return [];
-      const keys = Object.keys(imageCnIndex);
-      if (keys.length === 0) return [];
-      const sig = `${cardKey || 'default'}_${keys.length}_${keys[0]}_${keys[keys.length - 1]}`;
-      if (runtimeCache.compiledCnIndexMap.has(sig)) {
-        return runtimeCache.compiledCnIndexMap.get(sig);
-      }
-      const compiled = [];
-      for (let i = 0; i < keys.length; i++) {
-        const engToken = keys[i];
-        const engLow = String(engToken || '').trim().toLowerCase();
-        if (!engLow) continue;
-        const rawWords = imageCnIndex[engToken];
-        const arr = Array.isArray(rawWords) ? rawWords : String(rawWords || '').split(/[,，、/|]+/);
-        const cleanWords = [];
-        for (let j = 0; j < arr.length; j++) {
-          const cw = String(arr[j] || '').trim().toLowerCase();
-          if (cw.length >= 1) cleanWords.push(cw);
-        }
-        compiled.push({ engLow, cleanWords });
-      }
-      runtimeCache.compiledCnIndexMap.set(sig, compiled);
-      return compiled;
-    }
-
+    
     // 🚀 补丁二：混合语境雷达减负（防 Regex 回溯卡顿）
-    function analyzeDialogueContext(messages, latestUserText = '', imageCnIndex = {}, cardKey = '') {
-      const recentMsgs = Array.isArray(messages) ? messages.slice(-3) : []; // 从 5 降至 3
-      // 核心优化：只截取最后 500 个字符进行正则运算，极速提升性能
-      let recentText = [
-        ...recentMsgs.map(m => m?.content || ''),
-        latestUserText || ''
-      ].join('\n').toLowerCase();
-      if (recentText.length > 500) recentText = recentText.slice(-500);
-
-      let immediateText = [
-        ...(Array.isArray(messages) ? messages.slice(-1) : []).map(m => m?.content || ''),
-        latestUserText || ''
-      ].join('\n').toLowerCase();
-      if (immediateText.length > 300) immediateText = immediateText.slice(-300);
-
-      const detected = {
-        physio: new Set(),
-        outfits: new Set(),
-        scenes: new Set(),
-        actions: new Set(),
-        expressions: new Set(),
-        modifiers: new Set(),
-        aiIndexHitTokens: new Set(),
-        isNsfwScene: false,
-        isRomanticScene: false,
-        rawRecentText: recentText,
-        immediateText,
-        contextSeed: hashStringSeed(immediateText + '_' + (messages ? messages.length : 0))
-      };
-
-      const scanTextForCategory = (text, catName, targetSet) => {
-        const rgxMap = COMPILED_CAT_REGEX[catName];
-        if (!rgxMap || !text) return;
-        for (const [stdKey, rgx] of Object.entries(rgxMap)) {
-          if (rgx.test(text)) {
-            targetSet.add(stdKey);
-          }
-        }
-      };
-
-      scanTextForCategory(recentText, 'outfit', detected.outfits);
-      scanTextForCategory(recentText, 'scene', detected.scenes);
-      scanTextForCategory(immediateText, 'physio', detected.physio);
-      scanTextForCategory(immediateText, 'action', detected.actions);
-      scanTextForCategory(immediateText, 'expression', detected.expressions);
-      scanTextForCategory(immediateText, 'modifier', detected.modifiers);
-
-      const compiledCnList = getCompiledCnIndex(cardKey, imageCnIndex);
-      for (let i = 0; i < compiledCnList.length; i++) {
-        const { engLow, cleanWords } = compiledCnList[i];
-        if (immediateText.includes(engLow)) {
-          detected.aiIndexHitTokens.add(engLow);
-          continue;
-        }
-        for (let j = 0; j < cleanWords.length; j++) {
-          if (immediateText.includes(cleanWords[j])) {
-            detected.aiIndexHitTokens.add(engLow);
-            break;
-          }
-        }
-      }
-
-      if (detected.scenes.has('beach')) detected.outfits.add('swimsuit');
-      if (detected.scenes.has('bath')) {
-        detected.outfits.add('towel');
-        detected.physio.add('sweat');
-      }
-      if (detected.scenes.has('school')) detected.outfits.add('school');
-      if (detected.scenes.has('office_scene')) detected.outfits.add('office');
-      if (detected.actions.has('sleep')) detected.outfits.add('pajamas');
-
-      if (detected.actions.has('kiss') || detected.actions.has('hug') || detected.actions.has('touch_caress') || /接吻|亲吻|舌吻|深吻|嘴唇|唇瓣|拥抱|怀里|依偎|耳鬓厮磨|十指相扣|发烫|心跳加速/.test(immediateText)) {
-        detected.isRomanticScene = true;
-        if (/吻|唇|亲|舌|kiss/i.test(immediateText)) detected.actions.add('kiss');
-        if (/抱|怀里|搂|依偎|贴着|hug/i.test(immediateText)) detected.actions.add('hug');
-        if (detected.expressions.size === 0) {
-          detected.expressions.add('shy');
-          detected.expressions.add('tender');
-          detected.expressions.add('seductive');
-        }
-      }
-
-      const hasNsfwAct = Array.from(detected.actions).some(a => NSFW_ACTION_KEYS.has(a));
-      if (hasNsfwAct || detected.physio.has('nude') || detected.physio.has('cum') || /内射|中出|性交|做爱|插入|抽插|裸体|脱光|肉棒|小穴|乳头|呻吟|娇喘|高潮|口交|乳交|足交|后入|骑乘/.test(immediateText)) {
-        detected.isNsfwScene = true;
-      }
-
-      return detected;
-    }
-
+    
     // 极简中文标签提取辅助函数（如：微笑·常服）
-    function getBriefCnLabels(asset, imageCnIndex) {
-      const parts = [];
-
-      // 表情标签
-      if (asset.expression && asset.expression.length > 0) {
-        const exprMap = {
-          happy: '微笑', shy: '羞涩', sad: '悲伤', angry: '薄怒',
-          pout_jealous: '娇嗔', surprised: '吃惊', scared_panic: '慌乱', calm: '平静',
-          seductive: '动情', tender: '温柔', worried: '担忧', tired: '困倦',
-          smug: '得瑟', disgust_scorn: '嫌弃', pain_plead: '隐忍', yandere_obsess: '狂热'
-        };
-        const e = exprMap[asset.expression[0]] || asset.expression[0];
-        if (e) parts.push(e);
-      }
-
-      // 服装标签
-      if (asset.outfit && asset.outfit.length > 0) {
-        const outfitMap = {
-          normal: '常服', school: '校服', swimsuit: '泳衣', pajamas: '睡衣',
-          maid: '女仆装', wedding: '婚纱', office: '职业装', dress: '礼服',
-          sport: '运动装', lingerie: '内衣', stockings: '丝袜', apron: '围裙',
-          kimono: '和服', nurse: '护士装', bunny: '兔女郎', towel: '浴巾',
-          winter: '冬装', street_casual: '便服'
-        };
-        const o = outfitMap[asset.outfit[0]] || asset.outfit[0];
-        if (o && !parts.includes(o)) parts.push(o);
-      }
-
-      // 动作或生理
-      if (asset.isPregnant) {
-        parts.unshift('孕期');
-      } else if (asset.action && asset.action.length > 0) {
-                const actMap = {
-          stand: '站立', sit: '坐姿', kneel_squat: '跪蹲', sleep: '躺卧', walk_run: '走动',
-          lean_bend: '俯身', hug: '拥抱', lap_pillow: '膝枕', arm_in_arm: '挽手',
-          kiss: '接吻', touch_head: '摸头', hold_hands: '牵手', grope: '揉捏', touch_general: '抚摸',
-          eat_drink: '用餐', daily_act: '日常', cry_act: '哭泣', oral: '口交',
-          paizuri: '乳交', handjob: '手交', footjob: '足交', masturbate: '自慰', sex_normal: '正面',
-          sex_cowgirl: '骑乘', sex_doggy: '后入', sex_general: '做爱', climax: '高潮',
-          pinned_kabedon: '壁咚', bondage: '束缚'
-        };
-
-        const a = actMap[asset.action[0]] || asset.action[0];
-        if (a && !parts.includes(a)) parts.push(a);
-      }
-
-      // 若已有标签少于2个，使用 imageCnIndex 映射补充
-      if (parts.length < 2 && asset.subTokens) {
-        for (let i = 0; i < asset.subTokens.length; i++) {
-          const tk = asset.subTokens[i];
-          const mapped = imageCnIndex?.[tk];
-          if (mapped) {
-            const firstMeaning = Array.isArray(mapped) ? mapped[0] : String(mapped).split(/[,，/]/)[0];
-            if (firstMeaning && !parts.includes(firstMeaning)) {
-              parts.push(firstMeaning);
-              if (parts.length >= 2) break;
-            }
-          }
-        }
-      }
-
-      return parts.slice(0, 3).join('·') || '常规';
-    }
-
+    
     // 🚀 补丁三：定位目标 1 - 三级无图保底与部分匹配降级
     // 记忆每个角色最近一次选图的服装标签，跨轮粘性防跳装
     const lastOutfitMemory = new Map();
@@ -2372,7 +2186,7 @@ ${matchedSlices.join('\n\n')}`;
         // 日常场景：表情 1500 > 动作 600 > 服装 500（表情决定性，动作不再压死一切）
         const W = isSexScene ? { pose: 1500, outfit: 1000, expr: 500 } : { pose: 600, outfit: 500, expr: 1500 };
 
-        // V7.1.0 特征词奖惩：带特征词的图（生物/NTR/多人等）只有标签提到才加分，没提到重罚让位
+        // V7.1.1 特征词奖惩：带特征词的图（生物/NTR/多人等）只有标签提到才加分，没提到重罚让位
         const labelLower = ((poseStr || '') + '|' + (exprStrEff || '') + '|' + (outfitStrEff || '')).toLowerCase();
         const featureSet = new Set(charGroup.featureTokens || []);
         const assetFeatures = (a) => (a.subTokens || []).filter(t => featureSet.has(t));
@@ -2527,7 +2341,7 @@ ${matchedSlices.join('\n\n')}`;
     }
 
     // ------------------------------------------------------------------------
-    // V7.1.0 可见时间条：完整日期时间工具（30天制月份，与旧"第X天"体系对齐）
+    // V7.1.1 可见时间条：完整日期时间工具（30天制月份，与旧"第X天"体系对齐）
     // ------------------------------------------------------------------------
     function nyPad2(n) { return String(n).padStart(2, '0'); }
     // AI 上报值的规范化：年月日时分各自钳制到合法区间，缺省回退参考档案或默认值
@@ -2555,7 +2369,7 @@ ${matchedSlices.join('\n\n')}`;
           if (prof.month > 12) { prof.month = 1; prof.year = (prof.year || 2000) + 1; }
         }
       }
-      nyMoodDecay(prof, addMinutes); // V7.1.0 情绪惯性：随游戏时间衰减（约每小时-1）
+      nyMoodDecay(prof, addMinutes); // V7.1.1 情绪惯性：随游戏时间衰减（约每小时-1）
     }
     // 懒惰铺底：档案没有完整时刻时补一个随机起点（AI 首次上报可无条件覆盖确立）
     function ensureGameTime(prof) {
@@ -2571,7 +2385,7 @@ ${matchedSlices.join('\n\n')}`;
         return prof;
     }
 
-    // V7.1.0 好感数值规则（用户拍板）：好感 0.1 步进；单次加 0.1~2（大事件最高 4）；单次扣 ≤0.5；
+    // V7.1.1 好感数值规则（用户拍板）：好感 0.1 步进；单次加 0.1~2（大事件最高 4）；单次扣 ≤0.5；
     // 同一游戏日累计扣 ≤5（跨天重置）；保护线 ≥50 不跌破 50、≥80 不跌破 80、≥135 完全不减。
     // 所有加减好感（DeepSeek 记账与本地兜底）统一走这里，规则只写一处。
     function applyFavorDelta(prof, delta, opts = {}) {
@@ -2612,7 +2426,22 @@ ${matchedSlices.join('\n\n')}`;
         return true;
     }
 
-    // V7.1.0 一键生成人物形象初稿（三模板：语言档案/人际关系/NPC简档）——用户可用外部ZCode精修后导入
+    // V7.1.1 优化：资产对象 → 最终图片代码（Vis固化与DeepSeek追加共用，原两处逐字重复）
+    function nyBuildImageCode(assetReport, bestAsset) {
+      const tpl = (assetReport.regexInfo && assetReport.regexInfo.template) || '<img:{name}>';
+      const targetName = (assetReport.regexInfo && assetReport.regexInfo.stripExt) ? bestAsset.baseName : bestAsset.rawName;
+      let code = tpl;
+      if (tpl.includes('{char}') && tpl.includes('{state}')) {
+        const prefix = bestAsset.charToken;
+        const rest = targetName.slice(prefix.length).replace(/^[_.\-\s]+/, '');
+        code = tpl.replace('{char}', prefix).replace('{state}', rest);
+      } else if (tpl.includes('{name}')) {
+        code = tpl.replace('{name}', targetName);
+      }
+      return code;
+    }
+
+    // V7.1.1 一键生成人物形象初稿（三模板：语言档案/人际关系/NPC简档）——用户可用外部ZCode精修后导入
     async function generatePersonaDraft(ctx, prof) {
       const apiUrl = normalizeApiEndpoint(pluginConfig.apiUrl);
       const apiKey = String(pluginConfig.apiKey || '').trim();
@@ -2653,12 +2482,12 @@ ${matchedSlices.join('\n\n')}`;
       return target[1].name;
     }
 
-    // V7.1.0 MARKER_PLACEHOLDER
-    // V7.1.0 DeepSeek 辅助记账：每轮 AI 回复确认时，让"AI接口"里的便宜模型读剧情判账
+    // V7.1.1 MARKER_PLACEHOLDER
+    // V7.1.1 DeepSeek 辅助记账：每轮 AI 回复确认时，让"AI接口"里的便宜模型读剧情判账
     // （好感增减/新时刻/生理事件/选图），聊天主模型只演戏不记账（类 MVU 效果，专职模型更稳）。
     // 兜底链：超时或解析失败 → 本地启发式（时间+10分钟等）；本函数抛错由调用方吞掉。
     const deepPickMap = new Map(); // DeepSeek 每轮选中的图（基础名→候选差分组），供方案A固化时使用
-    const bakePickMemory = new Map(); // V7.1.0 方案A固化：记住上一张固化图，差分组随机轮换不连续重复
+    const bakePickMemory = new Map(); // V7.1.1 方案A固化：记住上一张固化图，差分组随机轮换不连续重复
     async function runDeepSeekAccounting(aiText) {
         const ctx = await getFastContext(false);
         if (!ctx.key) return false;
@@ -2705,7 +2534,7 @@ ${matchedSlices.join('\n\n')}`;
             { role: 'user', content: usr }
         ], 0.2, Math.max(10, Number(pluginConfig.accountingTimeoutSec) || 25));
         runtimeCache.lastAccountingMs = Date.now() - t0;
-        console.log(`[Nailya V7.1.0] AI记账: ${runtimeCache.lastAccountingMs}ms, tokens=${JSON.stringify(runtimeCache.lastAiUsage || null)}`);
+        console.log(`[Nailya V7.1.1] AI记账: ${runtimeCache.lastAccountingMs}ms, tokens=${JSON.stringify(runtimeCache.lastAiUsage || null)}`);
 
         const j = extractJsonFromAiResponse(content);
         if (!j || typeof j !== 'object') return false;
@@ -2740,7 +2569,7 @@ ${matchedSlices.join('\n\n')}`;
         }
         if (timeSet) applied = true;
 
-        // 2.5) 情绪（V7.1.0 惯性系统：强度随游戏小时衰减）
+        // 2.5) 情绪（V7.1.1 惯性系统：强度随游戏小时衰减）
         if (j.emotion && typeof j.emotion === 'object') {
           for (const [, prof] of list) {
             let emo = j.emotion[prof.name];
@@ -2759,7 +2588,7 @@ ${matchedSlices.join('\n\n')}`;
           }
         }
 
-        // 2.7) NPC 分账（V7.1.0）：NPC 档案独立存储，好感/情绪/记忆与女主同规则、配额减半
+        // 2.7) NPC 分账（V7.1.1）：NPC 档案独立存储，好感/情绪/记忆与女主同规则、配额减半
         const npcBox = npcProfiles[ctx.key] || {};
         const npcNames = Object.keys(npcBox);
         for (const nname of npcNames) {
@@ -2777,7 +2606,7 @@ ${matchedSlices.join('\n\n')}`;
           npc.isNpc = true;
         }
 
-        // 2.8) whereabouts + memoryNotes + offEvents（V7.1.0）
+        // 2.8) whereabouts + memoryNotes + offEvents（V7.1.1）
         if (j.whereabouts && typeof j.whereabouts === 'object') {
           for (const [, prof] of list) {
             const wv = j.whereabouts[prof.name] || (prof.origName ? j.whereabouts[prof.origName] : undefined);
@@ -3047,7 +2876,7 @@ ${matchedSlices.join('\n\n')}`;
       }
       lastUserInputAddedDays = false;
 
-      // V7.1.0 可见时间条：解析 AI 上报的绝对时刻 <游戏时间>20XX年XX月XX日 XX时XX分</游戏时间>
+      // V7.1.1 可见时间条：解析 AI 上报的绝对时刻 <游戏时间>20XX年XX月XX日 XX时XX分</游戏时间>
       let gameTimeReported = false;
       if (cleanedText.includes('<游戏时间>')) {
         cleanedText = cleanedText.replace(/\s*<游戏时间>[\s\S]*?<\/游戏时间>\s*/gi, '\n'); // 无论格式好坏都吞掉，别漏进正文
@@ -3072,14 +2901,14 @@ ${matchedSlices.join('\n\n')}`;
           } catch (_) {}
         }
       }
-      // V7.1.0 DeepSeek 辅助记账：好感/时间/生理/选图由"AI接口"的便宜模型读剧情判定，主模型只演戏不记账
+      // V7.1.1 DeepSeek 辅助记账：好感/时间/生理/选图由"AI接口"的便宜模型读剧情判定，主模型只演戏不记账
       let aiAccounted = false;
       if (pluginConfig.enableAiAccounting !== false && String(pluginConfig.apiKey || '').trim()) {
         try {
           await ensureStoredDataLoaded();
           aiAccounted = await runDeepSeekAccounting(cleanedText);
         } catch (accErr) {
-          console.log(`[Nailya V7.1.0] AI记账失败(走本地兜底): ${accErr.message}`);
+          console.log(`[Nailya V7.1.1] AI记账失败(走本地兜底): ${accErr.message}`);
           aiAccounted = false;
         }
       }
@@ -3099,7 +2928,7 @@ ${matchedSlices.join('\n\n')}`;
         } catch (_) {}
       }
 
-      // V7.1.0 方案A固化：输出确认时把 <Vis> 标签替换成最终图片代码存档——选图永久固定，
+      // V7.1.1 方案A固化：输出确认时把 <Vis> 标签替换成最终图片代码存档——选图永久固定，
       // 编辑消息/重开对话不再随机换图。DeepSeek 本轮选图（deepPickMap）优先，
       // 没有则回退显示层同一套评分器；选不到图时保留标签原文，显示层还有一次兜底机会。
       if (cleanedText.includes('<Vis:')) {
@@ -3124,17 +2953,7 @@ ${matchedSlices.join('\n\n')}`;
                 bestAsset = findBestImageForVisTag(ctxV.key, name, action, expression, outfit, assetReportV, imgIndexV, favorProfiles, ctxV);
               }
               if (!bestAsset) return match; // 选不到图：保留标签，显示层兜底
-              const tpl = (assetReportV.regexInfo && assetReportV.regexInfo.template) || '<img:{name}>';
-              const targetName = (assetReportV.regexInfo && assetReportV.regexInfo.stripExt) ? bestAsset.baseName : bestAsset.rawName;
-              let finalCode = tpl;
-              if (tpl.includes('{char}') && tpl.includes('{state}')) {
-                const prefix = bestAsset.charToken;
-                const rest = targetName.slice(prefix.length).replace(/^[_.\-\s]+/, '');
-                finalCode = tpl.replace('{char}', prefix).replace('{state}', rest);
-              } else if (tpl.includes('{name}')) {
-                finalCode = tpl.replace('{name}', targetName);
-              }
-              return '\n' + finalCode;
+              return '\n' + nyBuildImageCode(assetReportV, bestAsset);
             } catch (_) { return match; }
           });
         } catch (_) {}
@@ -3147,7 +2966,6 @@ ${matchedSlices.join('\n\n')}`;
           await ensureStoredDataLoaded();
           const ctxA = await getFastContext(false);
           const reportA = assetReportMemoryCache.get(ctxA.key) || await getCachedCardReport(ctxA, false);
-          const tplA = (reportA.regexInfo && reportA.regexInfo.template) || '<img:{name}>';
           const listA = profilesOfChat(ctxA.key, ctxA);
           const appends = [];
           for (const [, prof] of listA) {
@@ -3158,15 +2976,7 @@ ${matchedSlices.join('\n\n')}`;
             const poolA = (deepA.cands.length > 1 && lastA) ? deepA.cands.filter(x => x.baseName !== lastA) : deepA.cands;
             const bestA = poolA[Math.floor(Math.random() * poolA.length)] || deepA.cands[0];
             bakePickMemory.set(memKeyA, bestA.baseName);
-            const targetNameA = (reportA.regexInfo && reportA.regexInfo.stripExt) ? bestA.baseName : bestA.rawName;
-            let codeA = tplA;
-            if (tplA.includes('{char}') && tplA.includes('{state}')) {
-              const prefixA = bestA.charToken;
-              const restA = targetNameA.slice(prefixA.length).replace(/^[_.\-\s]+/, '');
-              codeA = tplA.replace('{char}', prefixA).replace('{state}', restA);
-            } else if (tplA.includes('{name}')) {
-              codeA = tplA.replace('{name}', targetNameA);
-            }
+            const codeA = nyBuildImageCode(reportA, bestA);
             if (cleanedText.includes(bestA.baseName)) continue; // 正文已带这张图（Vis固化/AI自嵌）就不重复
             appends.push(codeA);
           }
@@ -3230,7 +3040,7 @@ ${matchedSlices.join('\n\n')}`;
       // 存档里保留 <Vis:> 原文（这就是"以前点开全文能看到标签"的原因），图片在渲染时替换。
       // V6.6.0：连同 <img cmd> 清除也一并移除，输出层与 V5.5.7 完全一致。
 
-      // V7.1.0 可见时间条：把本回合最终时刻以纯文字标记追加进存档（显示层再替换成蓝天电子报时徽章）
+      // V7.1.1 可见时间条：把本回合最终时刻以纯文字标记追加进存档（显示层再替换成蓝天电子报时徽章）
       try {
         cleanedText = cleanedText.replace(/\s*<NyTime>[^<]*<\/NyTime>\s*/g, '\n');
         await ensureStoredDataLoaded();
@@ -3307,7 +3117,7 @@ ${matchedSlices.join('\n\n')}`;
     }
 
     // ------------------------------------------------------------------------
-    // V7.1.0 行为引擎：性格准则库查表、个体标签、情绪惯性、演出状态卡
+    // V7.1.1 行为引擎：性格准则库查表、个体标签、情绪惯性、演出状态卡
     // ------------------------------------------------------------------------
     function nyTraitPacks(tags) {
       const out = [];
@@ -3352,19 +3162,18 @@ ${matchedSlices.join('\n\n')}`;
       }
       return lines.join('｜');
     }
-    // V7.1.0 真实历法：星期几（历元 2000年1月1日=周一，30天制月份）
+    // V7.1.1 真实历法：星期几（历元 2000年1月1日=周一，30天制月份）
     const NY_WEEKDAYS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
     function nyWeekdayOf(prof) {
       const serial = nyTimeSerial(prof);
       return NY_WEEKDAYS[((serial % 7) + 7) % 7];
     }
-    // V7.1.0 日程查询：优先用户导入的日程模板（4~12小时块），否则用 AI 记账填报的 whereabouts
+    // V7.1.1 日程查询：优先用户导入的日程模板（4~12小时块），否则用 AI 记账填报的 whereabouts
     function buildWhereabouts(prof) {
       const tpl = (prof.importedProfile && prof.importedProfile.日程模板) || prof.schedule;
       if (tpl && typeof tpl === "object") {
         const wd = nyWeekdayOf(prof);
         const dayArr = tpl[wd] || [];
-        const hhmm = nyPad2(prof.hour || 0) + ":" + nyPad2(prof.minute || 0);
         for (const b of dayArr) {
           const seg = String(b.时段 || "");
           const mm = seg.match(/(\d{1,2}):(\d{2})\s*[-~到至]\s*(\d{1,2}):(\d{2})/);
@@ -3379,7 +3188,7 @@ ${matchedSlices.join('\n\n')}`;
       }
       return String(prof.whereabouts || "");
     }
-    // V7.1.0 记忆写入（每角色独立列表=天然防全知；配角/NPC 配额减半）
+    // V7.1.1 记忆写入（每角色独立列表=天然防全知；配角/NPC 配额减半）
     function nyAddMemory(prof, text, weight, type) {
       if (!prof || !text) return;
       ensureGameTime(prof);
@@ -3495,7 +3304,7 @@ ${matchedSlices.join('\n\n')}`;
           const outfitGuideText = buildOutfitAndBodyPromptBlock(prof, prof.lockedOutfit || '常服', { contextSeed:1 });
           
           let visInstruction = '';
-          // V7.1.0 提示词瘦身：AI记账开启时主模型不再需要输出视觉标签/时间上报（DeepSeek 判账），
+          // V7.1.1 提示词瘦身：AI记账开启时主模型不再需要输出视觉标签/时间上报（DeepSeek 判账），
           // 视觉指令只保留给"记账关闭"的旧模式；上报类义务全部退役，主模型专心演戏
           if (pluginConfig.enableImagePrompt && pluginConfig.enableAiAccounting === false) {
             const tagMenu = buildTagMenuForProfile(assetReport, prof, cachedAiData?.imageCnIndex || {});
@@ -3793,7 +3602,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
             <div class="logo-title">
               ${ICONS.logo}
               <span>NAILYA · 奈亚</span>
-              <span class="logo-ver">V7.1.0 极光星云</span>
+              <span class="logo-ver">V7.1.1 极光星云</span>
             </div>
             <div class="header-right">
               <button class="btn-glass primary" id="btn-run-ai-analyze" title="结合图包人名锚点与世界书进行全卡AI识别">
@@ -4913,7 +4722,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
           let done = 0;
           for (const [, prof] of profList) {
             btn.textContent = `生成中(${prof.name})…`;
-            try { await generatePersonaDraft(ctx, prof); done++; } catch (e) { console.log(`[Nailya V7.1.0] 初稿失败 ${prof.name}: ${e.message}`); }
+            try { await generatePersonaDraft(ctx, prof); done++; } catch (e) { console.log(`[Nailya V7.1.1] 初稿失败 ${prof.name}: ${e.message}`); }
           }
           const drafts = (cardAiCache[ctx.key] && cardAiCache[ctx.key].personaDrafts) || {};
           const firstName = profList[0][1].name;
@@ -5108,7 +4917,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
       backupCard.className = 'profile-card';
       backupCard.innerHTML = `
         <div class="card-header">
-          <span class="char-name">${ICONS.shield}<span>奈亚 V7.1.0 全量数据备份与多通道导出中心</span></span>
+          <span class="char-name">${ICONS.shield}<span>奈亚 V7.1.1 全量数据备份与多通道导出中心</span></span>
         </div>
         <div style="font-size:11px; color:var(--text-sub); line-height:1.6;">
           已存储：<strong>${cardCount}</strong> 张角色卡档案 ｜ <strong>${aiCacheCount}</strong> 张角色卡 AI 识卡缓存 ｜ <strong>${stCount}</strong> 套酒馆预设。
@@ -5143,7 +4952,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `nailya_v7.1.0_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
+          a.download = `nailya_v7.1.1_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -5207,7 +5016,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
         return userText;
       });
     } catch (e) {
-      console.log(`[Nailya V7.1.0] input handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V7.1.1] input handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -5218,7 +5027,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
         return aiText;
       });
     } catch (e) {
-      console.log(`[Nailya V7.1.0] output handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V7.1.1] output handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -5261,7 +5070,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
             });
         }
 
-        // V7.1.0 可见时间条：把存档里的纯文字时间标记替换为回复右上角的"夏日蓝天电子报时"徽章
+        // V7.1.1 可见时间条：把存档里的纯文字时间标记替换为回复右上角的"夏日蓝天电子报时"徽章
         if (out.includes('<NyTime>')) {
           out = out.replace(/<NyTime>([^<]+)<\/NyTime>/g, (_, body) => {
             const parts = body.split('|');
@@ -5284,7 +5093,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
         return out;
       });
     } catch (e) {
-      console.log(`[Nailya V7.1.0] display handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V7.1.1] display handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -5323,12 +5132,12 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
         return outMessages;
       });
     } catch (e) {
-      console.log(`[Nailya V7.1.0] beforeRequest replacer 注册异常: ${e.message}`);
+      console.log(`[Nailya V7.1.1] beforeRequest replacer 注册异常: ${e.message}`);
     }
 
     await ensureStoredDataLoaded();
-    console.log('[Nailya V7.1.0] 星云×极光双主题毛玻璃重构版初始化成功');
+    console.log('[Nailya V7.1.1] 星云×极光双主题毛玻璃重构版初始化成功');
   } catch (err) {
-    console.log(`[Nailya V7.1.0] 初始化异常: ${err.message}`);
+    console.log(`[Nailya V7.1.1] 初始化异常: ${err.message}`);
   }
 })();
