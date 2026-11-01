@@ -216,6 +216,36 @@
     globalThis.Risuai.nativeFetch = origNF;
     pluginConfig.enableAiAccounting = false; pluginConfig.apiKey = '';
 
+    // ===== 5g. V7.1.0 历法/日程/记忆/场外事件/NPC =====
+    ensureGameTime(profB);
+    T('历法:星期几可计算', ['周一','周二','周三','周四','周五','周六','周日'].includes(nyWeekdayOf(profB)), nyWeekdayOf(profB));
+    profB.importedProfile = { 日程模板: { 周一: [{ 时段: '00:00-23:59', 活动: '上课', 地点: '教室' }], 周二: [{ 时段: '00:00-23:59', 活动: '上课', 地点: '教室' }], 周三: [{ 时段: '00:00-23:59', 活动: '上课', 地点: '教室' }], 周四: [{ 时段: '00:00-23:59', 活动: '上课', 地点: '教室' }], 周五: [{ 时段: '00:00-23:59', 活动: '上课', 地点: '教室' }], 周六: [{ 时段: '00:00-23:59', 活动: '补课', 地点: '教室' }], 周日: [{ 时段: '00:00-23:59', 活动: '休息', 地点: '宿舍' }] } };
+    const wbB = buildWhereabouts(profB);
+    T('日程:按星期查活动地点', wbB.length > 0 && (wbB.includes('上课') || wbB.includes('补课') || wbB.includes('休息')), wbB);
+    nyAddMemory(profB, '答应周末一起去看海', 5, '对话记忆点');
+    T('记忆:已写入并召回', nyRecallMemories(profB).some(m => m.text.includes('看海')), '');
+    const memCap = { isNpc: true, memories: [] };
+    for (let i = 0; i < 30; i++) nyAddMemory(memCap, 'npc记忆' + i, 1);
+    T('记忆:NPC配额减半(25)', memCap.memories.length === 25, 'len=' + memCap.memories.length);
+    pluginConfig.enableAiAccounting = true; pluginConfig.apiKey = 'test-key';
+    globalThis.Risuai.nativeFetch = async () => new Response(JSON.stringify({
+      choices: [{ message: { content: '{"favorDeltas":{"尤娜":0.5},"newTime":{"year":2003,"month":4,"day":6,"hour":9,"minute":0},"physioEvents":[],"imagePick":{},"emotion":{"尤娜":"开心2"},"whereabouts":{"尤娜":"在教室自习｜教室"},"memoryNotes":[{"name":"尤娜","text":"她把你的承诺写进了日记","weight":4}],"offEvents":[{"name":"尤娜","text":"周末她独自去了海边，性格变得开朗了一些","major":true}]}' } }]
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+    await handleAiOutputAndMilestones('新的一天开始了。');
+    T('场外:跨天事件写入记忆', (profB.memories || []).some(m => m.text.includes('海边')), 'n=' + (profB.memories || []).length);
+    T('场外:重大事件写入性格外围', (profB.growthNotes || []).some(g => g.includes('海边')), JSON.stringify(profB.growthNotes || []));
+    T('日程:AI填报 whereabouts 已存', profB.whereabouts.includes('教室'), profB.whereabouts);
+    T('记忆:AI记忆点已写入', (profB.memories || []).some(m => m.text.includes('日记')), '');
+    const npcIn = JSON.stringify({ 名字: '小林', 身份: '同班同学', 性格一句话: '热心', 对主角的称呼: '同学', 日常在做什么: '打球', 常出没地点: '球场', 雷点: '', 情绪倾向: '开朗', 重要度: '一般配角' });
+    globalThis.Risuai.nativeFetch = async () => new Response(JSON.stringify({
+      choices: [{ message: { content: '{"favorDeltas":{"小林":1,"尤娜":0},"newTime":{"year":2003,"month":4,"day":6,"hour":10,"minute":0},"physioEvents":[],"imagePick":{},"emotion":{},"whereabouts":{},"memoryNotes":[],"offEvents":[]}' } }]
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+    npcProfiles['char1'] = { 小林: JSON.parse(npcIn) };
+    await handleAiOutputAndMilestones('小林也来打招呼。');
+    T('NPC:好感分账生效', npcProfiles['char1']['小林'].favor === 1, 'favor=' + npcProfiles['char1']['小林'].favor);
+    globalThis.Risuai.nativeFetch = origNF;
+    pluginConfig.enableAiAccounting = false; pluginConfig.apiKey = '';
+
     // ===== 6. 注入器 + 顶部时间 =====
     const replacerFn = __captured.replacers[0];
     T('注入器:beforeRequest已注册', typeof replacerFn === 'function');
@@ -310,7 +340,7 @@
   }
 
   let pass = 0, fail = 0;
-  console.log('\n========== 奈亚V7.0.0 自动化测试报告 ==========');
+  console.log('\n========== 奈亚V7.1.0 自动化测试报告 ==========');
   for (const [st, name, extra] of __results) {
     if (st === 'PASS') pass++; else fail++;
     console.log(`[${st}] ${name}${extra ? '  → ' + extra : ''}`);

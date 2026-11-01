@@ -1,7 +1,7 @@
 //@name favor_physio_manager
-//@display-name 奈亚V7.0.0·星云极光
+//@display-name 奈亚V7.1.0·星云极光
 //@api 3.0
-//@version 7.0.0
+//@version 7.1.0
 //@update-url https://raw.githubusercontent.com/postskt/nailya-plugin/main/Nailya.plugin.js
 
 (async () => {
@@ -83,7 +83,7 @@
       ...['action', 'chat', 'hamburger'].map(async (loc) => {
         try {
           const btnRes = await registerButtonSafe({
-            name: '奈亚V7.0.0',
+            name: '奈亚V7.1.0',
             icon: PLUGIN_ICON,
             iconType: PLUGIN_ICON_TYPE,
             location: loc,
@@ -91,13 +91,13 @@
           }, onPluginButtonClick);
           if (btnRes && btnRes.id) registeredUIParts.push(btnRes.id);
         } catch (btnErr) {
-          console.log(`[Nailya V7.0.0] 注册 ${loc} 按钮异常: ${btnErr.message}`);
+          console.log(`[Nailya V7.1.0] 注册 ${loc} 按钮异常: ${btnErr.message}`);
         }
       }),
       (async () => {
         try {
           const setRes = await registerSettingSafe(
-            '奈亚V7.0.0 星云极光·好感·生理·穿搭·酒馆预设',
+            '奈亚V7.1.0 星云极光·好感·生理·穿搭·酒馆预设',
             onPluginButtonClick,
             PLUGIN_ICON,
             PLUGIN_ICON_TYPE,
@@ -105,7 +105,7 @@
           );
           if (setRes && setRes.id) registeredUIParts.push(setRes.id);
         } catch (setErr) {
-          console.log(`[Nailya V7.0.0] 注册设置异常: ${setErr.message}`);
+          console.log(`[Nailya V7.1.0] 注册设置异常: ${setErr.message}`);
         }
       })()
     ]);
@@ -123,6 +123,7 @@
     let cardAiCache = {};       // 按角色卡 key 永久缓存 AI 解析结果(角色设定 + 图片中文语义索引)
     let stPresets = {};         // 存储导入的酒馆 (SillyTavern) 预设集合: presetId -> presetObj
     let stVars = {};            // 存储酒馆宏变量 {{setvar::k::v}} / {{getvar::k}}
+    let npcProfiles = {};       // V7.1.0 NPC 简档：charKey -> {npc名 -> {身份/性格一句话/称呼/日程一句话/雷点/情绪倾向/重要度/favor/memories}}
 
     let pluginConfig = {
       // 独立 AI 接口设置
@@ -193,11 +194,12 @@
     async function ensureStoredDataLoaded(force = false) {
       if (dataLoaded && !force) return;
       try {
-        const [storedProfiles, storedAiCache, cfg, rawSt] = await Promise.all([
+        const [storedProfiles, storedAiCache, cfg, rawSt, storedNpc] = await Promise.all([
           Risuai.pluginStorage.getItem('fpm_profiles_v3'),
           Risuai.pluginStorage.getItem('fpm_card_ai_cache_v5'),
           Risuai.pluginStorage.getItem('fpm_img_config_v3'),
-          Risuai.pluginStorage.getItem('fpm_st_presets_v52')
+          Risuai.pluginStorage.getItem('fpm_st_presets_v52'),
+          Risuai.pluginStorage.getItem('fpm_npc_v1')
         ]);
         if (storedProfiles) {
           favorProfiles = typeof storedProfiles === 'string' ? JSON.parse(storedProfiles) : storedProfiles;
@@ -215,13 +217,16 @@
             pluginConfig.maxCandidateCount = 16;
           }
         }
+        if (storedNpc) {
+          npcProfiles = typeof storedNpc === 'string' ? JSON.parse(storedNpc) : storedNpc;
+        }
         if (rawSt) {
           const parsedSt = typeof rawSt === 'string' ? JSON.parse(rawSt) : rawSt;
           if (parsedSt && typeof parsedSt === 'object') stPresets = parsedSt;
         }
         dataLoaded = true;
       } catch (e) {
-        console.log(`[Nailya V7.0.0] 读取数据异常: ${e.message}`);
+        console.log(`[Nailya V7.1.0] 读取数据异常: ${e.message}`);
       }
     }
 
@@ -246,13 +251,16 @@
           if (dirtyStoreKeys.has('config')) {
             tasks.push(Risuai.pluginStorage.setItem('fpm_img_config_v3', JSON.stringify(pluginConfig)));
           }
+          if (dirtyStoreKeys.has('npc')) {
+            tasks.push(Risuai.pluginStorage.setItem('fpm_npc_v1', JSON.stringify(npcProfiles)));
+          }
           if (dirtyStoreKeys.has('stPresets')) {
             tasks.push(Risuai.pluginStorage.setItem('fpm_st_presets_v52', JSON.stringify(stPresets)));
           }
           dirtyStoreKeys.clear();
           if (tasks.length > 0) await Promise.all(tasks);
         } catch (e) {
-          console.log(`[Nailya V7.0.0] 保存数据失败: ${e.message}`);
+          console.log(`[Nailya V7.1.0] 保存数据失败: ${e.message}`);
         }
       };
 
@@ -302,7 +310,7 @@
     function exportFullBackupJson() {
       const payload = {
         plugin: 'favor_physio_manager_nailya',
-        version: '7.0.0',
+        version: '7.1.0',
         exportedAt: new Date().toISOString(),
         favorProfiles,
         cardAiCache,
@@ -785,7 +793,7 @@
       'climax', 'bondage'
     ]);
 
-    // V7.0.0 特征词中英对照：图包里的生物/参与者/形态标记 → 标签里的中文写法。
+    // V7.1.0 特征词中英对照：图包里的生物/参与者/形态标记 → 标签里的中文写法。
     // 命中特征词的图 +600 优先；带特征词却没被剧情提到的图 -700 让位（蜘蛛图绝不错进普通做爱）
     const FEATURE_CN_DICT = {
       fly: ['飞虫', '苍蝇', '虫'], insect: ['昆虫', '虫'], bug: ['虫'],
@@ -1188,7 +1196,7 @@
 
       const knownCharTokens = Object.keys(byCharToken);
       const allUniqueImageTokens = Array.from(uniqueTokenCounter.entries()).sort((a, b) => b[1] - a[1]).slice(0, 180).map(e => e[0]);
-      // V7.0.0 特征词：提取"词典不认识、非纯数字、且只出现在部分图里"的词（生物/NTR/年龄标记等）。
+      // V7.1.0 特征词：提取"词典不认识、非纯数字、且只出现在部分图里"的词（生物/NTR/年龄标记等）。
       // 这类词旧解析器当垃圾扔掉，导致蜘蛛图混进普通做爱池随机误出——现在登记成特征词，选图时奖惩分明
       for (const tk of knownCharTokens) {
         const g = byCharToken[tk];
@@ -1680,7 +1688,7 @@ ${coreSchemaInstruction}
           alert(`🤖 AI 分析失败：${err.message}，多角色大卡可在「⚙️ AI接口」里调大超时秒数`);
           return false;
         }
-        console.log(`[Nailya V7.0.0] AI 分析异常: ${err.message}`);
+        console.log(`[Nailya V7.1.0] AI 分析异常: ${err.message}`);
         alert(`🤖 AI 分析失败：${err.message}\n\n当前请求地址：${apiUrl}\n当前模型名：${apiModel}`);
         return false;
       } finally {
@@ -2364,7 +2372,7 @@ ${matchedSlices.join('\n\n')}`;
         // 日常场景：表情 1500 > 动作 600 > 服装 500（表情决定性，动作不再压死一切）
         const W = isSexScene ? { pose: 1500, outfit: 1000, expr: 500 } : { pose: 600, outfit: 500, expr: 1500 };
 
-        // V7.0.0 特征词奖惩：带特征词的图（生物/NTR/多人等）只有标签提到才加分，没提到重罚让位
+        // V7.1.0 特征词奖惩：带特征词的图（生物/NTR/多人等）只有标签提到才加分，没提到重罚让位
         const labelLower = ((poseStr || '') + '|' + (exprStrEff || '') + '|' + (outfitStrEff || '')).toLowerCase();
         const featureSet = new Set(charGroup.featureTokens || []);
         const assetFeatures = (a) => (a.subTokens || []).filter(t => featureSet.has(t));
@@ -2519,7 +2527,7 @@ ${matchedSlices.join('\n\n')}`;
     }
 
     // ------------------------------------------------------------------------
-    // V7.0.0 可见时间条：完整日期时间工具（30天制月份，与旧"第X天"体系对齐）
+    // V7.1.0 可见时间条：完整日期时间工具（30天制月份，与旧"第X天"体系对齐）
     // ------------------------------------------------------------------------
     function nyPad2(n) { return String(n).padStart(2, '0'); }
     // AI 上报值的规范化：年月日时分各自钳制到合法区间，缺省回退参考档案或默认值
@@ -2547,7 +2555,7 @@ ${matchedSlices.join('\n\n')}`;
           if (prof.month > 12) { prof.month = 1; prof.year = (prof.year || 2000) + 1; }
         }
       }
-      nyMoodDecay(prof, addMinutes); // V7.0.0 情绪惯性：随游戏时间衰减（约每小时-1）
+      nyMoodDecay(prof, addMinutes); // V7.1.0 情绪惯性：随游戏时间衰减（约每小时-1）
     }
     // 懒惰铺底：档案没有完整时刻时补一个随机起点（AI 首次上报可无条件覆盖确立）
     function ensureGameTime(prof) {
@@ -2563,7 +2571,7 @@ ${matchedSlices.join('\n\n')}`;
         return prof;
     }
 
-    // V7.0.0 好感数值规则（用户拍板）：好感 0.1 步进；单次加 0.1~2（大事件最高 4）；单次扣 ≤0.5；
+    // V7.1.0 好感数值规则（用户拍板）：好感 0.1 步进；单次加 0.1~2（大事件最高 4）；单次扣 ≤0.5；
     // 同一游戏日累计扣 ≤5（跨天重置）；保护线 ≥50 不跌破 50、≥80 不跌破 80、≥135 完全不减。
     // 所有加减好感（DeepSeek 记账与本地兜底）统一走这里，规则只写一处。
     function applyFavorDelta(prof, delta, opts = {}) {
@@ -2604,7 +2612,7 @@ ${matchedSlices.join('\n\n')}`;
         return true;
     }
 
-    // V7.0.0 一键生成人物形象初稿（三模板：语言档案/人际关系/NPC简档）——用户可用外部ZCode精修后导入
+    // V7.1.0 一键生成人物形象初稿（三模板：语言档案/人际关系/NPC简档）——用户可用外部ZCode精修后导入
     async function generatePersonaDraft(ctx, prof) {
       const apiUrl = normalizeApiEndpoint(pluginConfig.apiUrl);
       const apiKey = String(pluginConfig.apiKey || '').trim();
@@ -2645,12 +2653,12 @@ ${matchedSlices.join('\n\n')}`;
       return target[1].name;
     }
 
-    // V7.0.0 MARKER_PLACEHOLDER
-    // V7.0.0 DeepSeek 辅助记账：每轮 AI 回复确认时，让"AI接口"里的便宜模型读剧情判账
+    // V7.1.0 MARKER_PLACEHOLDER
+    // V7.1.0 DeepSeek 辅助记账：每轮 AI 回复确认时，让"AI接口"里的便宜模型读剧情判账
     // （好感增减/新时刻/生理事件/选图），聊天主模型只演戏不记账（类 MVU 效果，专职模型更稳）。
     // 兜底链：超时或解析失败 → 本地启发式（时间+10分钟等）；本函数抛错由调用方吞掉。
     const deepPickMap = new Map(); // DeepSeek 每轮选中的图（基础名→候选差分组），供方案A固化时使用
-    const bakePickMemory = new Map(); // V7.0.0 方案A固化：记住上一张固化图，差分组随机轮换不连续重复
+    const bakePickMemory = new Map(); // V7.1.0 方案A固化：记住上一张固化图，差分组随机轮换不连续重复
     async function runDeepSeekAccounting(aiText) {
         const ctx = await getFastContext(false);
         if (!ctx.key) return false;
@@ -2675,24 +2683,29 @@ ${matchedSlices.join('\n\n')}`;
         const imgIndex = (cardAiCache[ctx.key] && cardAiCache[ctx.key].imageCnIndex) || {};
         const stateLines = [];
         const imgLines = [];
+        const npcBoxPre = npcProfiles[ctx.key] || {};
+        for (const nname of Object.keys(npcBoxPre).slice(0, 10)) {
+          const npc = npcBoxPre[nname];
+          stateLines.push(`- [NPC]${nname}｜好感${npc.favor || 0}｜${String(npc['性格一句话'] || npc['身份'] || '').slice(0, 40)}｜在做什么:${String(npc.whereabouts || npc['日常在做什么'] || '')}`);
+        }
         for (const [, prof] of list) {
             ensureGameTime(prof);
             const walls = FAVOR_WALLS.map(w => `${w.name}${prof[w.flag] ? '已过' : '未过(' + w.at + ')'}`).join('/');
-            stateLines.push(`- ${prof.name}｜好感${prof.favor}/200｜关系:${prof.relationshipTag || '未知'}｜性格:${String(prof.personality || '').slice(0, 40)}｜墙:${walls}｜时间:${prof.year}年${prof.month}月${prof.day}日 ${nyPad2(prof.hour || 0)}:${nyPad2(prof.minute || 0)}｜生理:${prof.pregnancyStatus}${prof.pregnancyStatus === '已孕' ? ' ' + (prof.gestationDays || 0) + '天' : ' 周期Day' + (prof.cycleDay || 14)}`);
+            stateLines.push(`- ${prof.name}｜好感${prof.favor}/200｜关系:${prof.relationshipTag || '未知'}｜性格:${String(prof.personality || '').slice(0, 40)}｜墙:${walls}｜时间:${prof.year}年${prof.month}月${prof.day}日 ${nyPad2(prof.hour || 0)}:${nyPad2(prof.minute || 0)}｜星期:${nyWeekdayOf(prof)}｜生理:${prof.pregnancyStatus}${prof.pregnancyStatus === '已孕' ? ' ' + (prof.gestationDays || 0) + '天' : ' 周期Day' + (prof.cycleDay || 14)}`);
             const menu = buildTagMenuForProfile(assetReport, prof, imgIndex);
             if (menu.imgList) imgLines.push(`- ${prof.name}: ${menu.imgList}`);
         }
 
         const sys = '你是恋爱角色扮演插件的记账引擎。只输出一个合法JSON对象，禁止markdown代码块、禁止解释、禁止JSON以外的任何文字。';
-        const usr = `【当前状态】\n${stateLines.join('\n')}\n\n【最近剧情（最后一条是本轮AI回复）】\n${recent.map(m => `[${m.role}] ${m.content}`).join('\n')}\n\n${imgLines.length ? `【可用图片清单（差分已合并）】\n${imgLines.join('\n')}\n\n` : ''}请判定本轮剧情后的账目，严格按以下JSON输出：\n{"favorDeltas":{"角色名":增减数值},"milestone":{"角色名":"告白"或"初夜"或"无"},"newTime":{"year":2024,"month":1,"day":1,"hour":0到23,"minute":0到59},"physioEvents":[{"name":"角色名","event":"受孕"}],"imagePick":{"角色名":"从该角色图片清单里选一个最贴合当前画面的基础名"},"emotion":{"角色名":"情绪名(1-10强度)"}}\n规则：\n1. favorDeltas 依据剧情互动判定：被陪伴/被善待为正(0.1~2)，被冷落/吃醋/被冒犯为负(最多-0.5)，没出场的角色填0；告白成功或发生初夜等大事件时该角色加最高4并在milestone标注；\n2. newTime 由你按剧情推进判断当前时刻：连续对话每轮推进10~60分钟，跨夜/跳天按剧情；严禁早于当前时间；\n3. physioEvents 仅当剧情明确发生无保护性行为且可能受孕时才输出，否则输出空数组[]；\n4. imagePick 每个出场角色都尽量选一张；没有合适图片就省略该角色；
-5. emotion 给每个出场角色判定当前情绪与强度(1-10)，结合其性格与刚发生的剧情；平静也照写；\n5. 只输出JSON，数值不要带单位。`;
+        const usr = `【当前状态】\n${stateLines.join('\n')}\n\n【最近剧情（最后一条是本轮AI回复）】\n${recent.map(m => `[${m.role}] ${m.content}`).join('\n')}\n\n${imgLines.length ? `【可用图片清单（差分已合并）】\n${imgLines.join('\n')}\n\n` : ''}请判定本轮剧情后的账目，严格按以下JSON输出：\n{"favorDeltas":{"角色名":增减数值},"milestone":{"角色名":"告白"或"初夜"或"无"},"newTime":{"year":2024,"month":1,"day":1,"hour":0到23,"minute":0到59},"physioEvents":[{"name":"角色名","event":"受孕"}],"imagePick":{"角色名":"从该角色图片清单里选一个最贴合当前画面的基础名"},"emotion":{"角色名":"情绪名(1-10强度)"},"whereabouts":{"角色名":"正在做的事｜地点"},"memoryNotes":[{"name":"","text":"本轮该角色身上值得长期记住的事","weight":1到5}],"offEvents":[{"name":"","text":"","major":false}]}\n规则：\n1. favorDeltas 依据剧情互动判定：被陪伴/被善待为正(0.1~2)，被冷落/吃醋/被冒犯为负(最多-0.5)，没出场的角色填0；告白成功或发生初夜等大事件时该角色加最高4并在milestone标注；\n2. newTime 由你按剧情推进判断当前时刻：连续对话每轮推进10~60分钟，跨夜/跳天按剧情；严禁早于当前时间；\n3. physioEvents 仅当剧情明确发生无保护性行为且可能受孕时才输出，否则输出空数组[]；\n4. imagePick 每个出场角色都尽量选一张；没有合适图片就省略该角色；
+5. emotion 给每个出场角色判定当前情绪与强度(1-10)，结合其性格与刚发生的剧情；平静也照写；\n6. whereabouts 给每个出场角色填写当前正在做的事和地点（结合其身份与当前时刻，时间推进后要合理变化）；\n7. memoryNotes 只记值得长期记住的事（重要承诺/关键冲突/重大转折），琐碎日常不记，weight 1~5；\n8. offEvents 仅当本轮时间推进跨天时生成：跳1天每角色1条、跳一周2条、跳一月3条、跳一年4条（她不在主角身边时发生的事），major=true 的重大事件(概率约5%/天)可以永久改变她的性格外围（如软弱变坚强、开朗变抑郁，包括NSFW向）；未跨天输出空数组[]；\n5. 只输出JSON，数值不要带单位。`;
         const t0 = Date.now();
         const { content } = await fetchAiChatJson(apiUrl, apiKey, apiModel, [
             { role: 'system', content: sys },
             { role: 'user', content: usr }
         ], 0.2, Math.max(10, Number(pluginConfig.accountingTimeoutSec) || 25));
         runtimeCache.lastAccountingMs = Date.now() - t0;
-        console.log(`[Nailya V7.0.0] AI记账: ${runtimeCache.lastAccountingMs}ms, tokens=${JSON.stringify(runtimeCache.lastAiUsage || null)}`);
+        console.log(`[Nailya V7.1.0] AI记账: ${runtimeCache.lastAccountingMs}ms, tokens=${JSON.stringify(runtimeCache.lastAiUsage || null)}`);
 
         const j = extractJsonFromAiResponse(content);
         if (!j || typeof j !== 'object') return false;
@@ -2727,7 +2740,7 @@ ${matchedSlices.join('\n\n')}`;
         }
         if (timeSet) applied = true;
 
-        // 2.5) 情绪（V7.0.0 惯性系统：强度随游戏小时衰减）
+        // 2.5) 情绪（V7.1.0 惯性系统：强度随游戏小时衰减）
         if (j.emotion && typeof j.emotion === 'object') {
           for (const [, prof] of list) {
             let emo = j.emotion[prof.name];
@@ -2742,6 +2755,61 @@ ${matchedSlices.join('\n\n')}`;
                 prof.mood = { type: m[1], intensity: Math.max(0, Math.min(10, m[2] ? parseInt(m[2], 10) : 5)) };
                 applied = true;
               }
+            }
+          }
+        }
+
+        // 2.7) NPC 分账（V7.1.0）：NPC 档案独立存储，好感/情绪/记忆与女主同规则、配额减半
+        const npcBox = npcProfiles[ctx.key] || {};
+        const npcNames = Object.keys(npcBox);
+        for (const nname of npcNames) {
+          const npc = npcBox[nname];
+          let nv = j.favorDeltas ? j.favorDeltas[nname] : undefined;
+          if (typeof nv === 'number' && isFinite(nv) && nv !== 0) {
+            npc.favor = Math.round(Math.min(200, Math.max(0, (npc.favor || 0) + Math.max(-0.5, Math.min(2, nv))) * 10) / 10);
+            applied = true;
+          }
+          const ne = j.emotion && j.emotion[nname];
+          if (typeof ne === 'string' && ne.trim()) {
+            const nm = ne.match(/[\u4e00-\u9fa5]{1,4}\s*(\d{1,2})?/);
+            if (nm) npc.mood = { type: nm[0].replace(/\d+/g, '').trim(), intensity: nm[1] ? parseInt(nm[1], 10) : 5 };
+          }
+          npc.isNpc = true;
+        }
+
+        // 2.8) whereabouts + memoryNotes + offEvents（V7.1.0）
+        if (j.whereabouts && typeof j.whereabouts === 'object') {
+          for (const [, prof] of list) {
+            const wv = j.whereabouts[prof.name] || (prof.origName ? j.whereabouts[prof.origName] : undefined);
+            if (typeof wv === 'string' && wv.trim()) { prof.whereabouts = wv.slice(0, 80); applied = true; }
+          }
+        }
+        if (Array.isArray(j.memoryNotes)) {
+          for (const mn of j.memoryNotes) {
+            if (!mn || !mn.name || !mn.text) continue;
+            const hitP = list.find(([, p]) => p.name === mn.name || p.origName === mn.name || String(p.name).includes(String(mn.name)));
+            if (hitP) { nyAddMemory(hitP[1], mn.text, mn.weight, '对话记忆点'); applied = true; continue; }
+            const hitN = npcNames.find(n => n === mn.name || String(n).includes(String(mn.name)));
+            if (hitN) { npcBox[hitN].isNpc = true; nyAddMemory(npcBox[hitN], mn.text, mn.weight, '对话记忆点'); applied = true; }
+          }
+        }
+        if (Array.isArray(j.offEvents) && j.offEvents.length) {
+          for (const ev of j.offEvents) {
+            if (!ev || !ev.name || !ev.text) continue;
+            const hitP = list.find(([, p]) => p.name === ev.name || p.origName === ev.name || String(p.name).includes(String(ev.name)));
+            const weight = ev.major ? 5 : 2;
+            if (hitP) {
+              nyAddMemory(hitP[1], ev.text, weight, ev.major ? '重大事件' : '场外事件');
+              if (ev.major) {
+                if (!Array.isArray(hitP[1].growthNotes)) hitP[1].growthNotes = [];
+                hitP[1].growthNotes.push(`[${hitP[1].month}月${hitP[1].day}日] ${String(ev.text).slice(0, 60)}`);
+                if (hitP[1].growthNotes.length > 5) hitP[1].growthNotes.shift();
+                hitP[1].mood = { type: ev.major && hitP[1].mood ? hitP[1].mood.type : '感慨', intensity: 8 };
+              }
+              applied = true;
+            } else {
+              const hitN = npcNames.find(n => n === ev.name || String(n).includes(String(ev.name)));
+              if (hitN) { npcBox[hitN].isNpc = true; nyAddMemory(npcBox[hitN], ev.text, weight, ev.major ? '重大事件' : '场外事件'); applied = true; }
             }
           }
         }
@@ -2779,7 +2847,7 @@ ${matchedSlices.join('\n\n')}`;
             }
         }
 
-        if (applied) await saveStoredData(false, ['profiles']);
+        if (applied) await saveStoredData(false, ['profiles', 'npc']);
         return true; // 记账通道成功（即使数值为0，时间已由DeepSeek判定），跳过本地+10兜底
     }
 
@@ -2979,7 +3047,7 @@ ${matchedSlices.join('\n\n')}`;
       }
       lastUserInputAddedDays = false;
 
-      // V7.0.0 可见时间条：解析 AI 上报的绝对时刻 <游戏时间>20XX年XX月XX日 XX时XX分</游戏时间>
+      // V7.1.0 可见时间条：解析 AI 上报的绝对时刻 <游戏时间>20XX年XX月XX日 XX时XX分</游戏时间>
       let gameTimeReported = false;
       if (cleanedText.includes('<游戏时间>')) {
         cleanedText = cleanedText.replace(/\s*<游戏时间>[\s\S]*?<\/游戏时间>\s*/gi, '\n'); // 无论格式好坏都吞掉，别漏进正文
@@ -3004,14 +3072,14 @@ ${matchedSlices.join('\n\n')}`;
           } catch (_) {}
         }
       }
-      // V7.0.0 DeepSeek 辅助记账：好感/时间/生理/选图由"AI接口"的便宜模型读剧情判定，主模型只演戏不记账
+      // V7.1.0 DeepSeek 辅助记账：好感/时间/生理/选图由"AI接口"的便宜模型读剧情判定，主模型只演戏不记账
       let aiAccounted = false;
       if (pluginConfig.enableAiAccounting !== false && String(pluginConfig.apiKey || '').trim()) {
         try {
           await ensureStoredDataLoaded();
           aiAccounted = await runDeepSeekAccounting(cleanedText);
         } catch (accErr) {
-          console.log(`[Nailya V7.0.0] AI记账失败(走本地兜底): ${accErr.message}`);
+          console.log(`[Nailya V7.1.0] AI记账失败(走本地兜底): ${accErr.message}`);
           aiAccounted = false;
         }
       }
@@ -3031,7 +3099,7 @@ ${matchedSlices.join('\n\n')}`;
         } catch (_) {}
       }
 
-      // V7.0.0 方案A固化：输出确认时把 <Vis> 标签替换成最终图片代码存档——选图永久固定，
+      // V7.1.0 方案A固化：输出确认时把 <Vis> 标签替换成最终图片代码存档——选图永久固定，
       // 编辑消息/重开对话不再随机换图。DeepSeek 本轮选图（deepPickMap）优先，
       // 没有则回退显示层同一套评分器；选不到图时保留标签原文，显示层还有一次兜底机会。
       if (cleanedText.includes('<Vis:')) {
@@ -3162,7 +3230,7 @@ ${matchedSlices.join('\n\n')}`;
       // 存档里保留 <Vis:> 原文（这就是"以前点开全文能看到标签"的原因），图片在渲染时替换。
       // V6.6.0：连同 <img cmd> 清除也一并移除，输出层与 V5.5.7 完全一致。
 
-      // V7.0.0 可见时间条：把本回合最终时刻以纯文字标记追加进存档（显示层再替换成蓝天电子报时徽章）
+      // V7.1.0 可见时间条：把本回合最终时刻以纯文字标记追加进存档（显示层再替换成蓝天电子报时徽章）
       try {
         cleanedText = cleanedText.replace(/\s*<NyTime>[^<]*<\/NyTime>\s*/g, '\n');
         await ensureStoredDataLoaded();
@@ -3239,7 +3307,7 @@ ${matchedSlices.join('\n\n')}`;
     }
 
     // ------------------------------------------------------------------------
-    // V7.0.0 行为引擎：性格准则库查表、个体标签、情绪惯性、演出状态卡
+    // V7.1.0 行为引擎：性格准则库查表、个体标签、情绪惯性、演出状态卡
     // ------------------------------------------------------------------------
     function nyTraitPacks(tags) {
       const out = [];
@@ -3284,6 +3352,49 @@ ${matchedSlices.join('\n\n')}`;
       }
       return lines.join('｜');
     }
+    // V7.1.0 真实历法：星期几（历元 2000年1月1日=周一，30天制月份）
+    const NY_WEEKDAYS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+    function nyWeekdayOf(prof) {
+      const serial = nyTimeSerial(prof);
+      return NY_WEEKDAYS[((serial % 7) + 7) % 7];
+    }
+    // V7.1.0 日程查询：优先用户导入的日程模板（4~12小时块），否则用 AI 记账填报的 whereabouts
+    function buildWhereabouts(prof) {
+      const tpl = (prof.importedProfile && prof.importedProfile.日程模板) || prof.schedule;
+      if (tpl && typeof tpl === "object") {
+        const wd = nyWeekdayOf(prof);
+        const dayArr = tpl[wd] || [];
+        const hhmm = nyPad2(prof.hour || 0) + ":" + nyPad2(prof.minute || 0);
+        for (const b of dayArr) {
+          const seg = String(b.时段 || "");
+          const mm = seg.match(/(\d{1,2}):(\d{2})\s*[-~到至]\s*(\d{1,2}):(\d{2})/);
+          if (!mm) continue;
+          const cur = (prof.hour || 0) * 60 + (prof.minute || 0);
+          const a = parseInt(mm[1], 10) * 60 + parseInt(mm[2], 10);
+          let bEnd = parseInt(mm[3], 10) * 60 + parseInt(mm[4], 10);
+          if (bEnd <= a) bEnd += 1440;
+          const curAdj = cur < a ? cur + 1440 : cur;
+          if (curAdj >= a && curAdj <= bEnd) return String(b.活动 || "") + (b.地点 ? "·" + b.地点 : "");
+        }
+      }
+      return String(prof.whereabouts || "");
+    }
+    // V7.1.0 记忆写入（每角色独立列表=天然防全知；配角/NPC 配额减半）
+    function nyAddMemory(prof, text, weight, type) {
+      if (!prof || !text) return;
+      ensureGameTime(prof);
+      if (!Array.isArray(prof.memories)) prof.memories = [];
+      const cap = prof.isNpc ? 25 : 200;
+      prof.memories.push({ t: `${prof.year}年${prof.month}月${prof.day}日 ${nyPad2(prof.hour || 0)}:${nyPad2(prof.minute || 0)}`, type: type || "对话记忆点", text: String(text).slice(0, 200), weight: Math.max(1, Math.min(5, weight || 2)) });
+      if (prof.memories.length > cap) prof.memories.splice(0, prof.memories.length - cap);
+    }
+    // 记忆召回：权重优先+近因优先，最多 6 条注入状态卡
+    function nyRecallMemories(prof) {
+      const arr = Array.isArray(prof.memories) ? prof.memories.slice() : [];
+      arr.sort((a, b) => (b.weight - a.weight));
+      return arr.slice(0, 6);
+    }
+
     // 演出状态卡：性格/情绪/称呼/口癖/语气/接受度/雷点/破格/恋爱婚后变化，全部从准则包现场合成
     function buildStateCard(prof) {
       const packs = nyTraitPacks(nyTagsOf(prof));
@@ -3319,7 +3430,7 @@ ${matchedSlices.join('\n\n')}`;
         if (Array.isArray(ip.雷点) && ip.雷点.length) L.push('雷点(用户): ' + ip.雷点.slice(0, 3).map(t => typeof t === 'string' ? t : (t.雷点 || '')).filter(Boolean).join('／').slice(0, 100));
         if (ip.称呼修正) L[1] += '｜称呼修正: ' + String(ip.称呼修正).slice(0, 50);
       }
-      return L.join('\n');
+      const wb = (() => { try { return buildWhereabouts(prof); } catch (_) { return ''; } })();      if (wb) L.push('她现在: ' + String(wb).slice(0, 60) + '｜星期: ' + nyWeekdayOf(prof));      const mems = nyRecallMemories(prof);      if (mems.length) L.push('她的记忆: ' + mems.map(m => '[' + m.t + ']' + String(m.text).slice(0, 40)).join('／').slice(0, 260));      if (Array.isArray(prof.growthNotes) && prof.growthNotes.length) L.push('性格外围演变: ' + prof.growthNotes.slice(-2).join('／').slice(0, 120));      return L.join('\n');
     }
 
     async function buildInjectedSystemNotes(messages) {
@@ -3384,7 +3495,7 @@ ${matchedSlices.join('\n\n')}`;
           const outfitGuideText = buildOutfitAndBodyPromptBlock(prof, prof.lockedOutfit || '常服', { contextSeed:1 });
           
           let visInstruction = '';
-          // V7.0.0 提示词瘦身：AI记账开启时主模型不再需要输出视觉标签/时间上报（DeepSeek 判账），
+          // V7.1.0 提示词瘦身：AI记账开启时主模型不再需要输出视觉标签/时间上报（DeepSeek 判账），
           // 视觉指令只保留给"记账关闭"的旧模式；上报类义务全部退役，主模型专心演戏
           if (pluginConfig.enableImagePrompt && pluginConfig.enableAiAccounting === false) {
             const tagMenu = buildTagMenuForProfile(assetReport, prof, cachedAiData?.imageCnIndex || {});
@@ -3433,7 +3544,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
           return `- ${p.name}：${phText}${riskTxt}`;
         }).join('\n');
         const d0 = ensureGameTime(list[0][1]);
-        topNote = `【⏰ 游戏内时间 · 必读】\n当前时间：${d0.year || 2000}年${d0.month || 1}月${d0.day || 1}日 ${nyPad2(d0.hour || 0)}:${nyPad2(d0.minute || 0)}\n${dateLines}\n${legacyPromptMode ? "每条回复最末尾必须输出当前剧情时刻 <游戏时间>20XX年XX月XX日 XX时XX分</游戏时间>（由你判断推进幅度，严禁倒流）。" : "（时间由插件AI记账引擎推进，你无需上报时刻。）"}`;
+        topNote = `【⏰ 游戏内时间 · 必读】\n当前时间：${d0.year || 2000}年${d0.month || 1}月${d0.day || 1}日（${nyWeekdayOf(d0)}） ${nyPad2(d0.hour || 0)}:${nyPad2(d0.minute || 0)}\n${dateLines}\n${legacyPromptMode ? "每条回复最末尾必须输出当前剧情时刻 <游戏时间>20XX年XX月XX日 XX时XX分</游戏时间>（由你判断推进幅度，严禁倒流）。" : "（时间由插件AI记账引擎推进，你无需上报时刻。）"}`;
         if (pluginConfig.enableImagePrompt && pluginConfig.enableAiAccounting === false) {
           const visNames = list.slice(0, 3).map(([, p]) => p.name).join('、');
           topNote += `\n【📷 视觉分镜提醒】当剧情发生动作转变、场景切换或情绪起伏时，在对应段落末尾呼叫视觉标签：<Vis:${d0.name}>动作或体位|表情|服装</Vis>（例：<Vis:${d0.name}>接吻|害羞|睡衣</Vis>），一轮回复穿插 1~3 次。${list.length > 1 ? `出场角色：${visNames}。` : ''}`;
@@ -3682,7 +3793,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
             <div class="logo-title">
               ${ICONS.logo}
               <span>NAILYA · 奈亚</span>
-              <span class="logo-ver">V7.0.0 极光星云</span>
+              <span class="logo-ver">V7.1.0 极光星云</span>
             </div>
             <div class="header-right">
               <button class="btn-glass primary" id="btn-run-ai-analyze" title="结合图包人名锚点与世界书进行全卡AI识别">
@@ -4769,6 +4880,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
             <button class="btn-chip violet" id="btn-persona-draft" title="AI通读角色卡，按三模板生成人物形象初稿（可导出给其他会话精修后导入）">🎭人物形象</button>
             <button class="btn-chip" id="btn-persona-import" title="粘贴精修后的语言档案JSON导入">📥导入档案</button>
             <button class="btn-chip" id="btn-memory-mgr" title="查看/管理当前对话各角色的记忆点">🧠记忆</button>
+            <button class="btn-chip" id="btn-npc-import" title="粘贴NPC简档JSON（支持数组批量）添加配角/NPC">👥NPC</button>
           </div>
         </div>
         <div class="info-grid">
@@ -4801,7 +4913,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
           let done = 0;
           for (const [, prof] of profList) {
             btn.textContent = `生成中(${prof.name})…`;
-            try { await generatePersonaDraft(ctx, prof); done++; } catch (e) { console.log(`[Nailya V7.0.0] 初稿失败 ${prof.name}: ${e.message}`); }
+            try { await generatePersonaDraft(ctx, prof); done++; } catch (e) { console.log(`[Nailya V7.1.0] 初稿失败 ${prof.name}: ${e.message}`); }
           }
           const drafts = (cardAiCache[ctx.key] && cardAiCache[ctx.key].personaDrafts) || {};
           const firstName = profList[0][1].name;
@@ -4844,6 +4956,27 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
         }
         await saveStoredData(false, ['profiles']);
         renderMainArea(ctx, assetReport);
+      };
+
+      summaryCard.querySelector('#btn-npc-import').onclick = async () => {
+        try {
+          const raw = prompt('粘贴 NPC 简档 JSON（单个对象或数组批量；模板见 档案模板/NPC简档模板.json）：');
+          if (!raw) return;
+          let arr = [];
+          try { const pj = JSON.parse(raw); arr = Array.isArray(pj) ? pj : [pj]; } catch (_) { const pj2 = extractJsonFromAiResponse(raw); if (!pj2) throw new Error('JSON 解析失败'); arr = Array.isArray(pj2) ? pj2 : [pj2]; }
+          if (!npcProfiles[ctx.key]) npcProfiles[ctx.key] = {};
+          let added = 0, skipped = [];
+          for (const npc of arr) {
+            const nname = String(npc['名字'] || npc.name || '').trim();
+            if (!nname) { skipped.push('(无名)'); continue; }
+            npcProfiles[ctx.key][nname] = Object.assign({ favor: 0, memories: [], isNpc: true }, npc, { 名字: nname });
+            added++;
+          }
+          await saveStoredData(true, ['npc']);
+          showToast(`✅ NPC 导入：新增 ${added} 个${skipped.length ? '，跳过 ' + skipped.length + ' 个' : ''}（当前共 ${Object.keys(npcProfiles[ctx.key]).length} 个）`, 5000);
+        } catch (e) {
+          alert('NPC 导入失败：' + e.message);
+        }
       };
 
       summaryCard.querySelector('#btn-toggle-img-prompt').onclick = async () => {
@@ -4975,7 +5108,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
       backupCard.className = 'profile-card';
       backupCard.innerHTML = `
         <div class="card-header">
-          <span class="char-name">${ICONS.shield}<span>奈亚 V7.0.0 全量数据备份与多通道导出中心</span></span>
+          <span class="char-name">${ICONS.shield}<span>奈亚 V7.1.0 全量数据备份与多通道导出中心</span></span>
         </div>
         <div style="font-size:11px; color:var(--text-sub); line-height:1.6;">
           已存储：<strong>${cardCount}</strong> 张角色卡档案 ｜ <strong>${aiCacheCount}</strong> 张角色卡 AI 识卡缓存 ｜ <strong>${stCount}</strong> 套酒馆预设。
@@ -5010,7 +5143,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `nailya_v7.0.0_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
+          a.download = `nailya_v7.1.0_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -5074,7 +5207,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
         return userText;
       });
     } catch (e) {
-      console.log(`[Nailya V7.0.0] input handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V7.1.0] input handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -5085,7 +5218,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
         return aiText;
       });
     } catch (e) {
-      console.log(`[Nailya V7.0.0] output handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V7.1.0] output handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -5128,7 +5261,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
             });
         }
 
-        // V7.0.0 可见时间条：把存档里的纯文字时间标记替换为回复右上角的"夏日蓝天电子报时"徽章
+        // V7.1.0 可见时间条：把存档里的纯文字时间标记替换为回复右上角的"夏日蓝天电子报时"徽章
         if (out.includes('<NyTime>')) {
           out = out.replace(/<NyTime>([^<]+)<\/NyTime>/g, (_, body) => {
             const parts = body.split('|');
@@ -5151,7 +5284,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
         return out;
       });
     } catch (e) {
-      console.log(`[Nailya V7.0.0] display handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V7.1.0] display handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -5190,12 +5323,12 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
         return outMessages;
       });
     } catch (e) {
-      console.log(`[Nailya V7.0.0] beforeRequest replacer 注册异常: ${e.message}`);
+      console.log(`[Nailya V7.1.0] beforeRequest replacer 注册异常: ${e.message}`);
     }
 
     await ensureStoredDataLoaded();
-    console.log('[Nailya V7.0.0] 星云×极光双主题毛玻璃重构版初始化成功');
+    console.log('[Nailya V7.1.0] 星云×极光双主题毛玻璃重构版初始化成功');
   } catch (err) {
-    console.log(`[Nailya V7.0.0] 初始化异常: ${err.message}`);
+    console.log(`[Nailya V7.1.0] 初始化异常: ${err.message}`);
   }
 })();
