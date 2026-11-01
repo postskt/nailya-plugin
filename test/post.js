@@ -193,6 +193,28 @@
     T('选图落地:DeepSeek选图已追加为图片代码', /yuna_kiss_shy/.test(outPick) && !outPick.includes('<Vis:'), outPick.slice(-60));
     globalThis.Risuai.nativeFetch = origNF;
     pluginConfig.enableAiAccounting = false; pluginConfig.apiKey = '';
+    // ===== 5f. V7.0.0 行为引擎 =====
+    const profB = favorProfiles['char1']['chat-abc#尤娜'];
+    profB.personality = '傲娇，其实很怕孤独';
+    profB.personalityTags = null; profB.petPhrase = '哼'; profB.taboos = ['被当小孩'];
+    const tagsB = nyTagsOf(profB);
+    T('行为:性格标签兜底反查', tagsB.includes('傲娇'), tagsB.join(','));
+    profB.mood = { type: '愤怒', intensity: 6 };
+    nyRollForward(ensureGameTime(profB), 120);
+    T('行为:情绪随游戏时间衰减(2小时-2)', profB.mood.intensity === 4, JSON.stringify(profB.mood));
+    const cardB = buildStateCard(profB);
+    T('行为:状态卡已合成', cardB.includes('演出状态卡') && cardB.includes('傲娇') && cardB.includes('接受度'), cardB.slice(0, 60));
+    T('行为:状态卡含雷点与口癖', cardB.includes('被当小孩') && cardB.includes('哼'), '');
+    const accB = nyAcceptanceOf(profB);
+    T('行为:接受度含性格修正', accB.includes('牵手✓'), accB);
+    pluginConfig.enableAiAccounting = true; pluginConfig.apiKey = 'test-key';
+    globalThis.Risuai.nativeFetch = async () => new Response(JSON.stringify({
+      choices: [{ message: { content: '{"favorDeltas":{},"newTime":{"year":2003,"month":4,"day":4,"hour":12,"minute":0},"physioEvents":[],"imagePick":{},"emotion":{"尤娜":"害羞3"}}' } }]
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+    await handleAiOutputAndMilestones('她的耳朵红了。');
+    T('行为:记账情绪落档案', profB.mood && profB.mood.type === '害羞' && profB.mood.intensity === 3, JSON.stringify(profB.mood));
+    globalThis.Risuai.nativeFetch = origNF;
+    pluginConfig.enableAiAccounting = false; pluginConfig.apiKey = '';
 
     // ===== 6. 注入器 + 顶部时间 =====
     const replacerFn = __captured.replacers[0];
@@ -288,7 +310,7 @@
   }
 
   let pass = 0, fail = 0;
-  console.log('\n========== 奈亚V6.9.0 自动化测试报告 ==========');
+  console.log('\n========== 奈亚V7.0.0 自动化测试报告 ==========');
   for (const [st, name, extra] of __results) {
     if (st === 'PASS') pass++; else fail++;
     console.log(`[${st}] ${name}${extra ? '  → ' + extra : ''}`);
