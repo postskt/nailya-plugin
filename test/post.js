@@ -25,7 +25,7 @@
     // ===== 3. 选图引擎 =====
     const ctx = await getFastContext(true);
     const report = await getCachedCardReport(ctx, true);
-    T('资产扫描:11张立绘(含差分)', report.assets.length === 11, 'got ' + report.assets.length);
+    T('资产扫描:13张立绘(含差分+特征)', report.assets.length === 13, 'got ' + report.assets.length);
     T('前缀识别:yuna', report.knownCharTokens.includes('yuna'), report.knownCharTokens.join(','));
     const pick1 = findBestImageForVisTag(ctx.key, '尤娜', '接吻', '害羞', '常服', report, {}, favorProfiles, ctx);
     T('选图:接吻→kiss图', !!pick1 && pick1.baseName.includes('kiss'), pick1 && pick1.baseName);
@@ -53,6 +53,12 @@
     const d1 = findBestImageForVisTag(ctx.key, '尤娜', '接吻', '害羞', '常服', report, {}, favorProfiles, ctx);
     const d2 = findBestImageForVisTag(ctx.key, '尤娜', '接吻', '害羞', '常服', report, {}, favorProfiles, ctx);
     T('差分轮换:同标签连续两次不重复', !!d1 && !!d2 && d1.baseName !== d2.baseName, d1 && d2 && (d1.baseName + ' vs ' + d2.baseName));
+    // ===== 3c. V6.9.0 特征词 =====
+    const pickSp = findBestImageForVisTag(ctx.key, '尤娜', '蜘蛛做爱', '动情', '全裸', report, {}, favorProfiles, ctx);
+    T('特征词:蜘蛛做爱→选中蜘蛛图', !!pickSp && pickSp.baseName.includes('spider'), pickSp && pickSp.baseName);
+    const pickNoFeat = findBestImageForVisTag(ctx.key, '尤娜', '后入', '害羞', '全裸', report, {}, favorProfiles, ctx);
+    T('特征词:未提特征→不被蜘蛛/飞虫污染', !!pickNoFeat && !pickNoFeat.baseName.includes('spider') && !pickNoFeat.baseName.includes('fly'), pickNoFeat && pickNoFeat.baseName);
+    T('特征词:报告已提取特征词表', (report.byCharToken['yuna'] && (report.byCharToken['yuna'].featureTokens || []).includes('spider')) === true, JSON.stringify(report.byCharToken['yuna'] && report.byCharToken['yuna'].featureTokens));
 
     // ===== 4. 怀孕当场结算 =====
     const prof1 = mkProf();
@@ -89,6 +95,29 @@
     updatePhysiology(prof5, 3, '');
     T('产后:43天恢复未孕+周期重置', prof5.pregnancyStatus === '未孕' && prof5.cycleDay === 1, JSON.stringify({s:prof5.pregnancyStatus, c:prof5.cycleDay}));
 
+    // ===== 4b. V6.9.0 好感数值规则 =====
+    const pFD = mkProf(); pFD.favor = 63;
+    applyFavorDelta(pFD, 5);
+    T('好感规则:单次加封顶2', pFD.favor === 65, 'favor=' + pFD.favor);
+    applyFavorDelta(pFD, 0.05);
+    T('好感规则:最低步进0.1', pFD.favor === 65.1, 'favor=' + pFD.favor);
+    applyFavorDelta(pFD, -3);
+    T('好感规则:单次扣封顶0.5', pFD.favor === 64.6, 'favor=' + pFD.favor);
+    const pF2 = mkProf(); pF2.favor = 80.5; applyFavorDelta(pF2, -2);
+    T('好感规则:80线不跌破(0.5递减到线即停)', pF2.favor === 80, 'favor=' + pF2.favor);
+    const pF3 = mkProf(); pF3.favor = 50.5; applyFavorDelta(pF3, -2);
+    T('好感规则:50线不跌破(0.5递减到线即停)', pF3.favor === 50, 'favor=' + pF3.favor);
+    const pF4 = mkProf(); pF4.favor = 140; applyFavorDelta(pF4, -2);
+    T('好感规则:135线完全不减', pF4.favor === 140, 'favor=' + pF4.favor);
+    const pF5 = mkProf(); pF5.favor = 40;
+    for (let i = 0; i < 20; i++) applyFavorDelta(pF5, -2);
+    T('好感规则:每日累计扣≤5', pF5.favor === 35, 'favor=' + pF5.favor);
+    nyRollForward(ensureGameTime(pF5), 60 * 25); // 推进25小时跨天
+    applyFavorDelta(pF5, -2);
+    T('好感规则:跨天扣分额度重置', pF5.favor === 34.5, 'favor=' + pF5.favor);
+    applyFavorDelta(pF5, 3, { milestone: true });
+    T('好感规则:大事件单次≤4', pF5.favor === 37.5, 'favor=' + pF5.favor);
+
     // ===== 5. output 管线：AI叙事受孕 + 时间标签 + 里程碑 =====
     favorProfiles['char1'] = { 'chat-abc#尤娜': mkProf() };
     const out1 = await handleAiOutputAndMilestones('他缓缓进入她的身体，无套内射了。<时间推进>2</时间推进>');
@@ -118,6 +147,52 @@
     const dispFnT = (__captured.handlers.find(h => h[0] === 'display') || [])[1];
     const dispT = await dispFnT('<NyTime>2003年4月1日|20:05</NyTime>');
     T('时间条:蓝天徽章渲染(右上角+时分)', dispT.includes('float:right') && dispT.includes('20:05') && !dispT.includes('<NyTime>'), dispT.slice(0, 80));
+
+    // ===== 5c. V6.9.0 DeepSeek 辅助记账（假API通道） =====
+    const origNF = globalThis.Risuai.nativeFetch;
+    globalThis.Risuai.nativeFetch = async () => new Response(JSON.stringify({
+      choices: [{ message: { content: '{"favorDeltas":{"尤娜":1.5},"milestone":{"尤娜":"无"},"newTime":{"year":2003,"month":4,"day":2,"hour":10,"minute":0},"physioEvents":[],"imagePick":{}}' } }]
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+    pluginConfig.enableAiAccounting = true;
+    pluginConfig.apiKey = 'test-key';
+    pluginConfig.apiUrl = 'https://api.deepseek.com/chat/completions';
+    pluginConfig.apiModel = 'deepseek-chat';
+    const profA = favorProfiles['char1']['chat-abc#尤娜'];
+    profA.timeUnset = false; profA.year = 2003; profA.month = 4; profA.day = 1; profA.hour = 9; profA.minute = 0;
+    const favorBeforeA = profA.favor;
+    await handleAiOutputAndMilestones('她陪你聊了一整轮天。');
+    T('记账:好感+1.5被采纳', profA.favor === favorBeforeA + 1.5, `favor=${profA.favor}`);
+    T('记账:时间推进到次日10:00', profA.hour === 10 && profA.minute === 0 && profA.day === 2, `d${profA.day} ${profA.hour}:${profA.minute}`);
+    T('记账:记账成功时+10兜底被跳过', profA.minute === 0);
+    globalThis.Risuai.nativeFetch = async () => new Response('{"error":"boom"}', { status: 500 });
+    const favorB = profA.favor; const mB = profA.minute;
+    await handleAiOutputAndMilestones('随便聊两句。');
+    T('记账:API失败回退本地+10分钟', profA.minute === (mB + 10) % 60 && profA.favor === favorB, `m=${profA.minute} favor=${profA.favor}`);
+    globalThis.Risuai.nativeFetch = origNF;
+    pluginConfig.enableAiAccounting = false;
+    pluginConfig.apiKey = '';
+
+    // ===== 5d. V6.9.0 方案A固化 + 提示词瘦身 =====
+    const outBake = await handleAiOutputAndMilestones('正文前奏\n<Vis:尤娜>接吻|害羞|常服</Vis>\n完');
+    T('固化:输出层Vis已替换为图片代码', !outBake.includes('<Vis:') && /<img:yuna_/.test(outBake), outBake.slice(-60));
+    const dispBake = await dispFnT(outBake);
+    T('固化:已固化文本显示层无残留Vis', !dispBake.includes('<Vis:'), dispBake.slice(-40));
+    pluginConfig.enableAiAccounting = true; pluginConfig.apiKey = 'test-key';
+    const msgsSlim = await __captured.replacers[0]([{ role: 'user', content: '瘦身测试' }]);
+    const joinedSlim = msgsSlim.map(m => m.content).join('|');
+    T('瘦身:记账开启时视觉指令退役', !joinedSlim.includes('视觉分镜指令'), '');
+    T('瘦身:记账开启时时间上报指令退役', !joinedSlim.includes('<游戏时间>'), '');
+    pluginConfig.enableAiAccounting = false; pluginConfig.apiKey = '';
+
+    // ===== 5e. V6.9.0 DeepSeek 选图落地 =====
+    pluginConfig.enableAiAccounting = true; pluginConfig.apiKey = 'test-key';
+    globalThis.Risuai.nativeFetch = async () => new Response(JSON.stringify({
+      choices: [{ message: { content: '{"favorDeltas":{},"newTime":{"year":2003,"month":4,"day":3,"hour":11,"minute":0},"physioEvents":[],"imagePick":{"尤娜":"yuna_kiss_shy"}}' } }]
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+    const outPick = await handleAiOutputAndMilestones('她凑过来轻轻亲了你的脸颊。');
+    T('选图落地:DeepSeek选图已追加为图片代码', /yuna_kiss_shy/.test(outPick) && !outPick.includes('<Vis:'), outPick.slice(-60));
+    globalThis.Risuai.nativeFetch = origNF;
+    pluginConfig.enableAiAccounting = false; pluginConfig.apiKey = '';
 
     // ===== 6. 注入器 + 顶部时间 =====
     const replacerFn = __captured.replacers[0];
@@ -207,12 +282,13 @@
     T('标签菜单:含图包实际表情词', joined12.includes('害羞') || joined12.includes('开心'), '');
     T('标签菜单:体位区已独立注入', joined12.includes('- 体位：'), '');
     T('标签菜单:槽3含裸体状态词', joined12.includes('裸体') || joined12.includes('浴巾'), '');
+    T('图片清单:完整图片名清单已注入', joined12.includes('完整图片清单') && joined12.includes('yuna_'), '');
   } catch (e) {
     __results.push(['FAIL', '标签菜单测试异常', String(e.message).slice(0, 80)]);
   }
 
   let pass = 0, fail = 0;
-  console.log('\n========== 奈亚V6.8.0 自动化测试报告 ==========');
+  console.log('\n========== 奈亚V6.9.0 自动化测试报告 ==========');
   for (const [st, name, extra] of __results) {
     if (st === 'PASS') pass++; else fail++;
     console.log(`[${st}] ${name}${extra ? '  → ' + extra : ''}`);
