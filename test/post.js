@@ -215,6 +215,17 @@
     T('行为:记账情绪落档案', profB.mood && profB.mood.type === '害羞' && profB.mood.intensity === 3, JSON.stringify(profB.mood));
     globalThis.Risuai.nativeFetch = origNF;
     pluginConfig.enableAiAccounting = false; pluginConfig.apiKey = '';
+    // V7.1.3 主副加权判定
+    const tMain = NY_TRAIT_LIBRARY.find(x => x.类型 === '傲娇');
+    const tSub = NY_TRAIT_LIBRARY.find(x => x.类型 === '病娇');
+    profB.personalityTags = ['傲娇', '病娇'];
+    const expGate = 30 + tMain.接受度修正.牵手 + Math.round(tSub.接受度修正.牵手 * 0.5);
+    profB.favor = expGate - 1;
+    T('主副加权:副性格修正减半(差1即✗)', nyAcceptanceOf(profB).includes('牵手✗(差1)'), nyAcceptanceOf(profB));
+    profB.favor = expGate;
+    T('主副加权:副性格修正减半(到线即✓)', nyAcceptanceOf(profB).includes('牵手✓'), 'gate=' + expGate);
+    T('主副加权:状态卡标注主副', buildStateCard(profB).includes('傲娇(主)') && buildStateCard(profB).includes('病娇(副)'), '');
+    profB.favor = 52.5; profB.personalityTags = ['傲娇'];
 
     // ===== 5g. V7.1.0 历法/日程/记忆/场外事件/NPC =====
     ensureGameTime(profB);
