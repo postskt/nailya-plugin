@@ -1,7 +1,7 @@
 //@name favor_physio_manager
-//@display-name 奈亚V7.1.1·星云极光
+//@display-name 奈亚V7.1.2·星云极光
 //@api 3.0
-//@version 7.1.1
+//@version 7.1.2
 //@update-url https://raw.githubusercontent.com/postskt/nailya-plugin/main/Nailya.plugin.js
 
 (async () => {
@@ -83,7 +83,7 @@
       ...['action', 'chat', 'hamburger'].map(async (loc) => {
         try {
           const btnRes = await registerButtonSafe({
-            name: '奈亚V7.1.1',
+            name: '奈亚V7.1.2',
             icon: PLUGIN_ICON,
             iconType: PLUGIN_ICON_TYPE,
             location: loc,
@@ -91,13 +91,13 @@
           }, onPluginButtonClick);
           if (btnRes && btnRes.id) registeredUIParts.push(btnRes.id);
         } catch (btnErr) {
-          console.log(`[Nailya V7.1.1] 注册 ${loc} 按钮异常: ${btnErr.message}`);
+          console.log(`[Nailya V7.1.2] 注册 ${loc} 按钮异常: ${btnErr.message}`);
         }
       }),
       (async () => {
         try {
           const setRes = await registerSettingSafe(
-            '奈亚V7.1.1 星云极光·好感·生理·穿搭·酒馆预设',
+            '奈亚V7.1.2 星云极光·好感·生理·穿搭·酒馆预设',
             onPluginButtonClick,
             PLUGIN_ICON,
             PLUGIN_ICON_TYPE,
@@ -105,7 +105,7 @@
           );
           if (setRes && setRes.id) registeredUIParts.push(setRes.id);
         } catch (setErr) {
-          console.log(`[Nailya V7.1.1] 注册设置异常: ${setErr.message}`);
+          console.log(`[Nailya V7.1.2] 注册设置异常: ${setErr.message}`);
         }
       })()
     ]);
@@ -226,7 +226,7 @@
         }
         dataLoaded = true;
       } catch (e) {
-        console.log(`[Nailya V7.1.1] 读取数据异常: ${e.message}`);
+        console.log(`[Nailya V7.1.2] 读取数据异常: ${e.message}`);
       }
     }
 
@@ -260,7 +260,7 @@
           dirtyStoreKeys.clear();
           if (tasks.length > 0) await Promise.all(tasks);
         } catch (e) {
-          console.log(`[Nailya V7.1.1] 保存数据失败: ${e.message}`);
+          console.log(`[Nailya V7.1.2] 保存数据失败: ${e.message}`);
         }
       };
 
@@ -310,7 +310,7 @@
     function exportFullBackupJson() {
       const payload = {
         plugin: 'favor_physio_manager_nailya',
-        version: '7.1.1',
+        version: '7.1.2',
         exportedAt: new Date().toISOString(),
         favorProfiles,
         cardAiCache,
@@ -1688,7 +1688,7 @@ ${coreSchemaInstruction}
           alert(`🤖 AI 分析失败：${err.message}，多角色大卡可在「⚙️ AI接口」里调大超时秒数`);
           return false;
         }
-        console.log(`[Nailya V7.1.1] AI 分析异常: ${err.message}`);
+        console.log(`[Nailya V7.1.2] AI 分析异常: ${err.message}`);
         alert(`🤖 AI 分析失败：${err.message}\n\n当前请求地址：${apiUrl}\n当前模型名：${apiModel}`);
         return false;
       } finally {
@@ -2534,7 +2534,7 @@ ${matchedSlices.join('\n\n')}`;
             { role: 'user', content: usr }
         ], 0.2, Math.max(10, Number(pluginConfig.accountingTimeoutSec) || 25));
         runtimeCache.lastAccountingMs = Date.now() - t0;
-        console.log(`[Nailya V7.1.1] AI记账: ${runtimeCache.lastAccountingMs}ms, tokens=${JSON.stringify(runtimeCache.lastAiUsage || null)}`);
+        console.log(`[Nailya V7.1.2] AI记账: ${runtimeCache.lastAccountingMs}ms, tokens=${JSON.stringify(runtimeCache.lastAiUsage || null)}`);
 
         const j = extractJsonFromAiResponse(content);
         if (!j || typeof j !== 'object') return false;
@@ -2908,7 +2908,7 @@ ${matchedSlices.join('\n\n')}`;
           await ensureStoredDataLoaded();
           aiAccounted = await runDeepSeekAccounting(cleanedText);
         } catch (accErr) {
-          console.log(`[Nailya V7.1.1] AI记账失败(走本地兜底): ${accErr.message}`);
+          console.log(`[Nailya V7.1.2] AI记账失败(走本地兜底): ${accErr.message}`);
           aiAccounted = false;
         }
       }
@@ -3602,7 +3602,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
             <div class="logo-title">
               ${ICONS.logo}
               <span>NAILYA · 奈亚</span>
-              <span class="logo-ver">V7.1.1 极光星云</span>
+              <span class="logo-ver">V7.1.2 极光星云</span>
             </div>
             <div class="header-right">
               <button class="btn-glass primary" id="btn-run-ai-analyze" title="结合图包人名锚点与世界书进行全卡AI识别">
@@ -4192,6 +4192,156 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
       modal.style.display = 'flex';
     }
 
+    // V7.1.2 🎭 人物与记忆 独立管理卡：默认视图显眼位置，可视化增删（替代原先藏在图包资源里的按钮）
+    function renderPersonaMemoryCard(container, ctx, assetReport) {
+      const profList = profilesOfChat(ctx.key, ctx);
+      const npcBox = npcProfiles[ctx.key] || {};
+      const card = document.createElement('div');
+      card.className = 'profile-card';
+      let html = `
+        <div class="card-header">
+          <span class="char-name">${ICONS.sparkle}<span>🎭 人物与记忆（当前卡 · 当前对话）</span></span>
+        </div>
+        <div style="font-size:11px; color:var(--text-sub); margin:4px 0 8px;">记忆由 AI 记账自动写入（只记重要事）+ 你的手工记录；注入时只给该角色本人的记忆（防全知）。</div>`;
+      if (profList.length === 0) {
+        html += `<div style="color:var(--text-sub); font-size:12px; padding:8px 0;">当前卡还没有角色档案，请先 [一键AI分析] 建档。</div>`;
+      }
+      for (const [slot, prof] of profList) {
+        const mems = Array.isArray(prof.memories) ? prof.memories : [];
+        const tags = nyTagsOf(prof).join('·') || '未标注';
+        const moodTxt = (prof.mood && prof.mood.type && prof.mood.type !== '平静') ? `${prof.mood.type}(${prof.mood.intensity}/10)` : '平静';
+        html += `
+        <div style="border:1px solid var(--glass-border); border-radius:10px; padding:8px 10px; margin-bottom:8px;">
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <strong style="font-size:12.5px; color:var(--text-main);">${prof.name}</strong>
+            <span style="font-size:10.5px; color:var(--text-sub);">好感 ${prof.favor}/200 · ${tags} · 情绪 ${moodTxt}</span>
+            <button class="btn-chip" data-act="draft" data-name="${prof.name}">🎭生成形象</button>
+            <button class="btn-chip" data-act="import" data-name="${prof.name}">📥导入档案</button>
+            <button class="btn-chip" data-act="addmem" data-name="${prof.name}">➕记忆</button>
+            <button class="btn-chip" data-act="clearmem" data-name="${prof.name}">🧹清空</button>
+          </div>`;
+        if (mems.length === 0) {
+          html += `<div style="font-size:11px; color:var(--text-sub); padding:5px 0;">暂无记忆点（AI 只记重要事件；也可 ➕ 手工添加）</div>`;
+        } else {
+          html += `<div style="margin-top:6px;">`;
+          mems.forEach((m, idx) => {
+            const stars = '★'.repeat(Math.max(1, Math.min(5, m.weight || 1)));
+            html += `<div style="display:flex; align-items:center; gap:6px; font-size:11px; padding:3px 0; border-bottom:1px dashed var(--glass-border);">
+              <span style="color:var(--text-highlight); white-space:nowrap;">${stars}</span>
+              <span style="color:var(--text-sub); white-space:nowrap;">${String(m.t || '').slice(0, 14)}</span>
+              <span style="color:var(--text-sub); white-space:nowrap;">${m.type || ''}</span>
+              <span style="color:var(--text-main); flex:1; word-break:break-all;">${String(m.text || '').slice(0, 120)}</span>
+              <button class="btn-chip" data-act="delmem" data-name="${prof.name}" data-idx="${idx}" style="padding:1px 7px;">删</button>
+            </div>`;
+          });
+          html += `</div>`;
+        }
+        html += `</div>`;
+      }
+      // NPC 区
+      const npcNames = Object.keys(npcBox);
+      html += `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:4px;">
+        <strong style="font-size:12px; color:var(--text-main);">👥 NPC（${npcNames.length}）</strong>
+        <button class="btn-chip" data-act="npcimport">📥导入NPC</button>
+      </div>`;
+      for (const nname of npcNames) {
+        const npc = npcBox[nname];
+        html += `<div style="display:flex; align-items:center; gap:6px; font-size:11px; padding:3px 0;">
+          <strong style="color:var(--text-main);">${nname}</strong>
+          <span style="color:var(--text-sub);">好感 ${npc.favor || 0} · ${(npc.memories || []).length}条记忆 · ${String(npc['性格一句话'] || npc['身份'] || '').slice(0, 30)}</span>
+          <button class="btn-chip" data-act="npcdel" data-name="${nname}" style="padding:1px 7px;">删</button>
+        </div>`;
+      }
+      card.innerHTML = html;
+
+      card.querySelectorAll('button[data-act]').forEach(btn => {
+        const act = btn.dataset.act;
+        const name = btn.dataset.name;
+        if (act === 'draft') {
+          btn.onclick = async () => {
+            const hit = profList.find(([, p]) => p.name === name);
+            if (!hit) return;
+            const oldTxt = btn.textContent;
+            try {
+              btn.textContent = '生成中…';
+              const draft = await generatePersonaDraft(ctx, hit[1]);
+              try { copyTextMobileSafe(JSON.stringify(draft, null, 2)); } catch (_) {}
+              showToast(`✅ ${name} 的形象初稿已生成并复制到剪贴板`, 5000);
+            } catch (e) { alert('生成失败：' + e.message); }
+            finally { btn.textContent = oldTxt; }
+          };
+        } else if (act === 'import') {
+          btn.onclick = async () => {
+            try {
+              const raw = prompt('粘贴精修后的档案 JSON（角色名需一致）：');
+              if (!raw) return;
+              const imported = await importPersonaProfile(ctx, raw);
+              showToast(`✅ 已导入「${imported}」的外部档案`, 5000);
+              renderMainArea(ctx, assetReport);
+            } catch (e) { alert('导入失败：' + e.message); }
+          };
+        } else if (act === 'addmem') {
+          btn.onclick = async () => {
+            const hit = profList.find(([, p]) => p.name === name);
+            if (!hit) return;
+            const txt = prompt(`给 ${name} 新增记忆点：`);
+            if (!txt) return;
+            nyAddMemory(hit[1], txt, 3, '手工记录');
+            await saveStoredData(false, ['profiles']);
+            renderMainArea(ctx, assetReport);
+          };
+        } else if (act === 'clearmem') {
+          btn.onclick = async () => {
+            if (!armOnceConfirm(btn, '再点一次确认清空')) return;
+            const hit = profList.find(([, p]) => p.name === name);
+            if (!hit) return;
+            hit[1].memories = [];
+            await saveStoredData(false, ['profiles']);
+            showToast(`已清空 ${name} 的记忆`);
+            renderMainArea(ctx, assetReport);
+          };
+        } else if (act === 'delmem') {
+          btn.onclick = async () => {
+            const hit = profList.find(([, p]) => p.name === name);
+            if (!hit || !Array.isArray(hit[1].memories)) return;
+            hit[1].memories.splice(parseInt(btn.dataset.idx, 10), 1);
+            await saveStoredData(false, ['profiles']);
+            renderMainArea(ctx, assetReport);
+          };
+        } else if (act === 'npcimport') {
+          btn.onclick = async () => {
+            try {
+              const raw = prompt('粘贴 NPC 简档 JSON（单个对象或数组批量）：');
+              if (!raw) return;
+              let arr = [];
+              try { const pj = JSON.parse(raw); arr = Array.isArray(pj) ? pj : [pj]; } catch (_) { const pj2 = extractJsonFromAiResponse(raw); if (!pj2) throw new Error('JSON 解析失败'); arr = Array.isArray(pj2) ? pj2 : [pj2]; }
+              if (!npcProfiles[ctx.key]) npcProfiles[ctx.key] = {};
+              let added = 0;
+              for (const npc of arr) {
+                const nname = String(npc['名字'] || npc.name || '').trim();
+                if (!nname) continue;
+                npcProfiles[ctx.key][nname] = Object.assign({ favor: 0, memories: [], isNpc: true }, npc, { 名字: nname });
+                added++;
+              }
+              await saveStoredData(true, ['npc']);
+              showToast(`✅ NPC 新增 ${added} 个（当前共 ${Object.keys(npcProfiles[ctx.key]).length} 个）`, 5000);
+              renderMainArea(ctx, assetReport);
+            } catch (e) { alert('NPC 导入失败：' + e.message); }
+          };
+        } else if (act === 'npcdel') {
+          btn.onclick = async () => {
+            if (!armOnceConfirm(btn, '再点一次确认删除')) return;
+            delete npcProfiles[ctx.key][name];
+            await saveStoredData(true, ['npc']);
+            showToast(`已删除 NPC ${name}`);
+            renderMainArea(ctx, assetReport);
+          };
+        }
+      });
+
+      container.appendChild(card);
+    }
+
     function renderMainArea(ctx, assetReport) {
       const container = document.getElementById('profile-list');
       if (!container) return;
@@ -4229,6 +4379,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
           frag.appendChild(createProfileCardNode(ctx.key, slot, prof, true, ctx, assetReport));
         });
         container.appendChild(frag);
+        renderPersonaMemoryCard(container, ctx, assetReport); // V7.1.2 🎭 人物与记忆管理卡
       } else {
         const keys = Object.keys(favorProfiles);
         let count = 0;
@@ -4686,10 +4837,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
             <button class="btn-chip" id="btn-edit-max-count">候选池 (${pluginConfig.maxCandidateCount || 16}张)</button>
             <button class="btn-chip" id="btn-edit-img-tpl">格式模板</button>
             <button class="btn-chip violet" id="btn-inject-preview" title="查看实际发给AI的顶部时间与说明书原文">${ICONS.shield}<span>注入预览</span></button>
-            <button class="btn-chip violet" id="btn-persona-draft" title="AI通读角色卡，按三模板生成人物形象初稿（可导出给其他会话精修后导入）">🎭人物形象</button>
-            <button class="btn-chip" id="btn-persona-import" title="粘贴精修后的语言档案JSON导入">📥导入档案</button>
-            <button class="btn-chip" id="btn-memory-mgr" title="查看/管理当前对话各角色的记忆点">🧠记忆</button>
-            <button class="btn-chip" id="btn-npc-import" title="粘贴NPC简档JSON（支持数组批量）添加配角/NPC">👥NPC</button>
+
           </div>
         </div>
         <div class="info-grid">
@@ -4710,82 +4858,6 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
         showToast(`已重新扫描：共识别 ${refreshed.assets.length} 张立绘`);
         renderUnboundPrefixBar(ctx, refreshed);
         renderMainArea(ctx, refreshed);
-      };
-
-      summaryCard.querySelector('#btn-persona-draft').onclick = async () => {
-        const btn = summaryCard.querySelector('#btn-persona-draft');
-        const oldTxt = btn.textContent;
-        try {
-          btn.textContent = '生成中…';
-          const profList = profilesOfChat(ctx.key, ctx);
-          if (profList.length === 0) { alert('当前卡还没有角色档案，请先完成建档'); return; }
-          let done = 0;
-          for (const [, prof] of profList) {
-            btn.textContent = `生成中(${prof.name})…`;
-            try { await generatePersonaDraft(ctx, prof); done++; } catch (e) { console.log(`[Nailya V7.1.1] 初稿失败 ${prof.name}: ${e.message}`); }
-          }
-          const drafts = (cardAiCache[ctx.key] && cardAiCache[ctx.key].personaDrafts) || {};
-          const firstName = profList[0][1].name;
-          if (drafts[firstName]) { try { copyTextMobileSafe(JSON.stringify(drafts[firstName], null, 2)); } catch (_) {} }
-          showToast(`✅ 已生成 ${done}/${profList.length} 份人物形象初稿（首份已复制到剪贴板，可导出精修）`, 6000);
-        } catch (e) {
-          alert('生成失败：' + e.message);
-        } finally {
-          btn.textContent = oldTxt;
-        }
-      };
-
-      summaryCard.querySelector('#btn-persona-import').onclick = async () => {
-        try {
-          const raw = prompt('粘贴精修后的档案 JSON（语言档案模板/三模板合体均可，角色名需与档案一致）：');
-          if (!raw) return;
-          const name = await importPersonaProfile(ctx, raw);
-          showToast(`✅ 已导入「${name}」的外部语言档案（状态卡将优先使用）`, 5000);
-        } catch (e) {
-          alert('导入失败：' + e.message);
-        }
-      };
-
-      summaryCard.querySelector('#btn-memory-mgr').onclick = async () => {
-        const profList = profilesOfChat(ctx.key, ctx);
-        const lines = profList.map(([, p]) => `${p.name}: ${(p.memories || []).length}条`);
-        const cmd = prompt(`当前对话角色记忆（只显示本卡本对话）：\n${lines.join('\n')}\n\n输入命令：\n角色名|序号 = 删除第N条(从1开始)\n角色名|clear = 清空\n角色名|文本 = 手工新增记忆\n留空取消：`);
-        if (!cmd) return;
-        const [cname, action] = cmd.split('|').map(x => (x || '').trim());
-        const hit = profList.find(([, p]) => p.name === cname || String(p.name).includes(cname));
-        if (!hit || !action) { alert('格式不对'); return; }
-        const prof = hit[1];
-        if (!Array.isArray(prof.memories)) prof.memories = [];
-        if (action === 'clear') { prof.memories = []; showToast(`已清空 ${prof.name} 的记忆`); }
-        else if (/^[0-9]+$/.test(action)) { prof.memories.splice(parseInt(action, 10) - 1, 1); showToast('已删除该条记忆'); }
-        else {
-          ensureGameTime(prof);
-          prof.memories.push({ t: `${prof.year}年${prof.month}月${prof.day}日 ${nyPad2(prof.hour || 0)}:${nyPad2(prof.minute || 0)}`, type: '手工记录', text: action.slice(0, 200), weight: 3 });
-          showToast('已新增记忆');
-        }
-        await saveStoredData(false, ['profiles']);
-        renderMainArea(ctx, assetReport);
-      };
-
-      summaryCard.querySelector('#btn-npc-import').onclick = async () => {
-        try {
-          const raw = prompt('粘贴 NPC 简档 JSON（单个对象或数组批量；模板见 档案模板/NPC简档模板.json）：');
-          if (!raw) return;
-          let arr = [];
-          try { const pj = JSON.parse(raw); arr = Array.isArray(pj) ? pj : [pj]; } catch (_) { const pj2 = extractJsonFromAiResponse(raw); if (!pj2) throw new Error('JSON 解析失败'); arr = Array.isArray(pj2) ? pj2 : [pj2]; }
-          if (!npcProfiles[ctx.key]) npcProfiles[ctx.key] = {};
-          let added = 0, skipped = [];
-          for (const npc of arr) {
-            const nname = String(npc['名字'] || npc.name || '').trim();
-            if (!nname) { skipped.push('(无名)'); continue; }
-            npcProfiles[ctx.key][nname] = Object.assign({ favor: 0, memories: [], isNpc: true }, npc, { 名字: nname });
-            added++;
-          }
-          await saveStoredData(true, ['npc']);
-          showToast(`✅ NPC 导入：新增 ${added} 个${skipped.length ? '，跳过 ' + skipped.length + ' 个' : ''}（当前共 ${Object.keys(npcProfiles[ctx.key]).length} 个）`, 5000);
-        } catch (e) {
-          alert('NPC 导入失败：' + e.message);
-        }
       };
 
       summaryCard.querySelector('#btn-toggle-img-prompt').onclick = async () => {
@@ -4917,7 +4989,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
       backupCard.className = 'profile-card';
       backupCard.innerHTML = `
         <div class="card-header">
-          <span class="char-name">${ICONS.shield}<span>奈亚 V7.1.1 全量数据备份与多通道导出中心</span></span>
+          <span class="char-name">${ICONS.shield}<span>奈亚 V7.1.2 全量数据备份与多通道导出中心</span></span>
         </div>
         <div style="font-size:11px; color:var(--text-sub); line-height:1.6;">
           已存储：<strong>${cardCount}</strong> 张角色卡档案 ｜ <strong>${aiCacheCount}</strong> 张角色卡 AI 识卡缓存 ｜ <strong>${stCount}</strong> 套酒馆预设。
@@ -4952,7 +5024,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `nailya_v7.1.1_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
+          a.download = `nailya_v7.1.2_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -5016,7 +5088,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
         return userText;
       });
     } catch (e) {
-      console.log(`[Nailya V7.1.1] input handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V7.1.2] input handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -5027,7 +5099,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
         return aiText;
       });
     } catch (e) {
-      console.log(`[Nailya V7.1.1] output handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V7.1.2] output handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -5093,7 +5165,7 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
         return out;
       });
     } catch (e) {
-      console.log(`[Nailya V7.1.1] display handler 注册异常: ${e.message}`);
+      console.log(`[Nailya V7.1.2] display handler 注册异常: ${e.message}`);
     }
 
     try {
@@ -5132,12 +5204,12 @@ ${legacyPromptMode ? '\n2.【时间上报 · 必须执行】每条回复的最�
         return outMessages;
       });
     } catch (e) {
-      console.log(`[Nailya V7.1.1] beforeRequest replacer 注册异常: ${e.message}`);
+      console.log(`[Nailya V7.1.2] beforeRequest replacer 注册异常: ${e.message}`);
     }
 
     await ensureStoredDataLoaded();
-    console.log('[Nailya V7.1.1] 星云×极光双主题毛玻璃重构版初始化成功');
+    console.log('[Nailya V7.1.2] 星云×极光双主题毛玻璃重构版初始化成功');
   } catch (err) {
-    console.log(`[Nailya V7.1.1] 初始化异常: ${err.message}`);
+    console.log(`[Nailya V7.1.2] 初始化异常: ${err.message}`);
   }
 })();
